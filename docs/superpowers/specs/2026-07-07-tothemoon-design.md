@@ -2,8 +2,9 @@
 
 Personal net-worth and portfolio tracker for a single user. Replaces a monthly
 spreadsheet ritual: log holdings and SGD balances into a live **draft**, then
-**close the month** to lock an immutable snapshot and watch net worth in SGD
-over time. No public auth screen — protection is HTTP Basic at the CDN edge.
+**close the month** to lock a snapshot and watch net worth in SGD over time.
+Closed months are read-only by default; an explicit, confirmation-gated
+**"Amend snapshot"** action in History may edit one (human errors happen). No public auth screen — protection is HTTP Basic at the CDN edge.
 
 Companion documents: `plans/ARCHITECTURE.md` (AWS topology, agreed as-is),
 `plans/STACK.md` (stack rationale), `screenshots/` (visual reference mockups).
@@ -13,7 +14,7 @@ Companion documents: `plans/ARCHITECTURE.md` (AWS topology, agreed as-is),
 | Decision | Choice |
 |---|---|
 | Architecture | Backend + DB: CloudFront → S3 (SPA) + single Lambda (Function URL) → DynamoDB, per `plans/ARCHITECTURE.md` |
-| Snapshot model | Live draft + explicit "Close month" locking an immutable `YYYY-MM` snapshot; draft carries forward |
+| Snapshot model | Live draft + explicit "Close month" locking a read-only `YYYY-MM` snapshot; draft carries forward |
 | Amendments | Closed months read-only by default; explicit "Amend snapshot" in History (confirmation-gated) may edit one — this amends the original spec's absolute immutability rule |
 | Prices | Stocks/ETFs: Twelve Data `/eod`. Crypto: CoinGecko (symbol → ID via its search endpoint) |
 | FX (USD/SGD) | Twelve Data (1 credit; free tier = 8 credits/min, 800/day — ample at monthly usage) |
@@ -48,6 +49,82 @@ Draft    = { holdings: Holding[], assets: Assets, liabilities: Liabilities,
 Snapshot = { month: "YYYY-MM", snapshotDate: string, fxRate: number,
              closedAt: string, holdings, assets, liabilities, totals: Totals }
 ```
+
+### Stored documents (visual schema)
+
+Everything lives in one DynamoDB table, `tothemoon`. There are exactly two
+document shapes — the draft (always one item) and one item per closed month:
+
+```
+tothemoon
+┌────────┬───────────┬────────────────────────────────────────────────┐
+│ pk     │ sk        │ document                                       │
+├────────┼───────────┼────────────────────────────────────────────────┤
+│ "USER" │ "DRAFT"   │ Draft — the live working document (single)     │
+│ "USER" │ "2026-05" │ Snapshot — closed May 2026                     │
+│ "USER" │ "2026-06" │ Snapshot — closed June 2026                    │
+│ "USER" │ …         │ one Snapshot item per closed month             │
+└────────┴───────────┴────────────────────────────────────────────────┘
+```
+
+**Draft item**, as actually stored:
+
+```jsonc
+{
+  "pk": "USER",
+  "sk": "DRAFT",
+  "fxRate": 1.3280,                     // optional until first fetch
+  "updatedAt": "2026-07-03T10:12:00Z",
+  "holdings": [
+    { "id": "3f1c…", "ticker": "BTC", "type": "crypto",
+      "quantity": 0.42, "priceUsd": 106535.00, "valueUsd": 44744.70,
+      "asOf": "2026-07-03" },
+    { "id": "9a2e…", "ticker": "VOO", "type": "etf",
+      "quantity": 25, "priceUsd": 603.79, "valueUsd": 15094.75,
+      "asOf": "2026-07-03" }
+  ],
+  "assets": {
+    "bankSavings": [
+      { "id": "b1…", "name": "DBS Multiplier", "balanceSgd": 49646.00, "asOf": "2026-07-03" },
+      { "id": "b2…", "name": "UOB One",        "balanceSgd": 23197.50, "asOf": "2026-07-03" }
+    ],                                   // ≤ 5
+    "cpf":      [ { "id": "c1…", "name": "CPF (OA + SA + MA)", "balanceSgd": 146544.00, "asOf": "2026-07-03" } ],  // ≤ 4
+    "property": [ { "id": "p1…", "name": "BTO — Tampines",     "balanceSgd": 743760.00, "asOf": "2026-07-03" } ]   // ≤ 1
+  },
+  "liabilities": {
+    "creditCards": [ { "id": "cc1…", "name": "DBS Altitude", "balanceSgd": 1757.50, "asOf": "2026-07-03" } ],      // ≤ 5
+    "loans":       [ { "id": "l1…",  "name": "HDB Home Loan", "balanceSgd": 391400.00, "asOf": "2026-07-03" } ]    // unlimited
+  }
+}
+```
+
+**Snapshot item** — the same `holdings`/`assets`/`liabilities` document plus
+the fields stamped at close (or amend):
+
+```jsonc
+{
+  "pk": "USER",
+  "sk": "2026-06",                       // = month
+  "snapshotDate": "2026-06-26",          // user-confirmed close date
+  "fxRate": 1.3280,                      // required: the rate this month is locked at
+  "closedAt": "2026-06-26T14:03:00Z",
+  "holdings": [ /* as above */ ],
+  "assets": { /* as above */ },
+  "liabilities": { /* as above */ },
+  "totals": {                            // recomputed server-side, never client-supplied
+    "netWorthSgd": 714313.81,
+    "portfolioUsd": 109350.01, "portfolioSgd": 145216.81,
+    "savingsSgd": 72843.50, "cpfSgd": 146544.00, "propertySgd": 743760.00,
+    "creditCardsSgd": 2650.50, "loansSgd": 391400.00
+  }
+}
+```
+
+Notes: liability balances are stored positive and subtracted in the math
+(displayed as negative in the UI). The draft stores no `totals` — they are
+computed live client-side and only persisted when a month is closed or
+amended. These two shapes are exactly the `Draft` and `Snapshot` Zod schemas
+in `shared/` (plus the `pk`/`sk` keys, which the store layer adds).
 
 Money math: `portfolioSgd = portfolioUsd × fxRate`;
 `netWorthSgd = portfolioSgd + savingsSgd + cpfSgd + propertySgd − creditCardsSgd − loansSgd`.
