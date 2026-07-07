@@ -107,7 +107,7 @@ function PortfolioPage() {
           icon={ChartPie}
           title="No holdings yet"
           hint="Add your first stock, ETF, or crypto holding and we'll fetch its end-of-day USD price."
-          action={<Button onClick={() => setFormOpen(true)}><Plus className="size-4" /> Add your first holding</Button>}
+          action={<Button onClick={() => { setEditing(undefined); setFormOpen(true); }}><Plus className="size-4" /> Add your first holding</Button>}
         />
       ) : (
         <HoldingsTable
