@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.superpowers/
+
+.data/
+server/.env
+dist-server/
+*.tfvars
+.terraform/
+terraform.tfstate*
