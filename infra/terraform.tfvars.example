@@ -1,0 +1,4 @@
+basic_auth_user     = "raymond"
+basic_auth_password = "change-me"
+origin_secret       = "generate-a-long-random-string"
+twelve_data_api_key = "your-twelve-data-key"

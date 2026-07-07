@@ -1,0 +1,17 @@
+function handler(event) {
+  var request = event.request;
+  var expected = "Basic ${auth}";
+  var header = request.headers.authorization && request.headers.authorization.value;
+  if (header !== expected) {
+    return {
+      statusCode: 401,
+      statusDescription: "Unauthorized",
+      headers: { "www-authenticate": { value: 'Basic realm="ToTheMoon"' } }
+    };
+  }
+  var uri = request.uri;
+  if (!uri.startsWith("/api/") && !uri.includes(".")) {
+    request.uri = "/index.html";
+  }
+  return request;
+}
