@@ -1,11 +1,13 @@
-variable "basic_auth_user" {
-  type      = string
-  sensitive = true
+variable "app_password" {
+  description = "The single password the login page accepts"
+  type        = string
+  sensitive   = true
 }
 
-variable "basic_auth_password" {
-  type      = string
-  sensitive = true
+variable "session_token" {
+  description = "Opaque session-cookie value; generate with: openssl rand -base64 32 | tr '+/' '-_'"
+  type        = string
+  sensitive   = true
 }
 
 variable "origin_secret" {

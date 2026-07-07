@@ -50,6 +50,8 @@ resource "aws_lambda_function" "api" {
       TABLE_NAME          = aws_dynamodb_table.main.name
       TWELVE_DATA_API_KEY = var.twelve_data_api_key
       ORIGIN_SECRET       = var.origin_secret
+      APP_PASSWORD        = var.app_password
+      SESSION_TOKEN       = var.session_token
     }
   }
 }

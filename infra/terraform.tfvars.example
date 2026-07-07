@@ -1,4 +1,5 @@
-basic_auth_user     = "raymond"
-basic_auth_password = "change-me"
+app_password        = "pick-a-long-password"
+# generate with: openssl rand -base64 32 | tr '+/' '-_'
+session_token       = "generate-a-long-random-token"
 origin_secret       = "generate-a-long-random-string"
 twelve_data_api_key = "your-twelve-data-key"

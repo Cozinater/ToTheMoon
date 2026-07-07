@@ -9,8 +9,8 @@ resource "aws_cloudfront_function" "gate" {
   name    = "tothemoon-gate"
   runtime = "cloudfront-js-2.0"
   publish = true
-  code = templatefile("${path.module}/basic-auth.js.tftpl", {
-    auth = base64encode("${var.basic_auth_user}:${var.basic_auth_password}")
+  code = templatefile("${path.module}/gate.js.tftpl", {
+    session_token = var.session_token
   })
 }
 

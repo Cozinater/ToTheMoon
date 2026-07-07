@@ -1,0 +1,25 @@
+function handler(event) {
+  var request = event.request;
+  var uri = request.uri;
+
+  if (uri.startsWith("/api/")) {
+    if (uri === "/api/login" || uri === "/api/logout") {
+      return request;
+    }
+    var cookie = request.cookies["ttm_session"] && request.cookies["ttm_session"].value;
+    if (cookie !== "${session_token}") {
+      return {
+        statusCode: 401,
+        statusDescription: "Unauthorized",
+        headers: { "content-type": { value: "application/json" } },
+        body: '{"error":"UNAUTHORIZED","message":"Sign in required"}'
+      };
+    }
+    return request;
+  }
+
+  if (!uri.includes(".")) {
+    request.uri = "/index.html";
+  }
+  return request;
+}
