@@ -16,7 +16,11 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new ApiError(res.status, body.error ?? "UNKNOWN", body.message ?? res.statusText);
+    const code = body.error ?? "UNKNOWN";
+    if (res.status === 401 && code === "UNAUTHORIZED" && window.location.pathname !== "/login") {
+      window.location.assign("/login"); // session gone: full reload drops in-memory data
+    }
+    throw new ApiError(res.status, code, body.message ?? res.statusText);
   }
   return res.json() as Promise<T>;
 }
