@@ -42,3 +42,7 @@ body {
 @utility glow {
   text-shadow: 0 0 24px rgb(242 239 227 / 0.35), 0 0 64px rgb(242 239 227 / 0.15);
 }
+
+@utility cn-font-heading {
+  font-family: var(--font-display);
+}
