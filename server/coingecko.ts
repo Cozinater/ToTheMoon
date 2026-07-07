@@ -20,8 +20,8 @@ async function resolveId(symbol: string): Promise<string | null> {
 export async function cgQuotes(symbols: string[]): Promise<Map<string, { priceUsd: number; asOf: string }>> {
   const out = new Map<string, { priceUsd: number; asOf: string }>();
   const ids = new Map<string, string>(); // symbol (upper) → coingecko id
-  for (const s of symbols) {
-    const id = await resolveId(s);
+  const resolved = await Promise.all(symbols.map(async (s) => [s, await resolveId(s)] as const));
+  for (const [s, id] of resolved) {
     if (id) ids.set(s.toUpperCase(), id);
   }
   if (ids.size === 0) return out;
