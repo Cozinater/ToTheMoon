@@ -11,6 +11,10 @@ BUCKET=$(terraform -chdir=infra output -raw bucket_name)
 DIST_ID=$(terraform -chdir=infra output -raw distribution_id)
 DOMAIN=$(terraform -chdir=infra output -raw cloudfront_domain)
 
+: "${BUCKET:?bucket_name output is empty — did terraform apply succeed?}"
+: "${DIST_ID:?distribution_id output is empty — did terraform apply succeed?}"
+: "${DOMAIN:?cloudfront_domain output is empty — did terraform apply succeed?}"
+
 # hashed assets: cache forever; index.html: always revalidate
 aws s3 sync dist "s3://$BUCKET" --delete \
   --cache-control "public,max-age=31536000,immutable" --exclude "index.html"
