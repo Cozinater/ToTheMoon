@@ -6,14 +6,14 @@ spreadsheet ritual: log holdings and SGD balances into a live **draft**, then
 Closed months are read-only by default; an explicit, confirmation-gated
 **"Amend snapshot"** action in History may edit one (human errors happen). No public auth screen — protection is HTTP Basic at the CDN edge.
 
-Companion documents: `plans/ARCHITECTURE.md` (AWS topology, agreed as-is),
-`plans/STACK.md` (stack rationale), `screenshots/` (visual reference mockups).
+Companion documents: `docs/ARCHITECTURE.md` (AWS topology, agreed as-is),
+`docs/STACK.md` (stack rationale), `screenshots/` (visual reference mockups).
 
 ## Decisions log
 
 | Decision | Choice |
 |---|---|
-| Architecture | Backend + DB: CloudFront → S3 (SPA) + single Lambda (Function URL) → DynamoDB, per `plans/ARCHITECTURE.md` |
+| Architecture | Backend + DB: CloudFront → S3 (SPA) + single Lambda (Function URL) → DynamoDB, per `docs/ARCHITECTURE.md` |
 | Snapshot model | Live draft + explicit "Close month" locking a read-only `YYYY-MM` snapshot; draft carries forward |
 | Amendments | Closed months read-only by default; explicit "Amend snapshot" in History (confirmation-gated) may edit one — this amends the original spec's absolute immutability rule |
 | Prices | Stocks/ETFs: Twelve Data `/eod`. Crypto: CoinGecko (symbol → ID via its search endpoint) |
@@ -293,7 +293,7 @@ origin shape as production. Twelve Data key in gitignored `server/.env`
 ## Infrastructure (Terraform, `infra/`)
 
 Region `ap-southeast-1`, local state, flat root module per
-`plans/ARCHITECTURE.md`:
+`docs/ARCHITECTURE.md`:
 
 - `dynamodb.tf` — `tothemoon` table, provisioned 5 RCU / 5 WCU
 - `lambda.tf` — scoped IAM role (CRUD on the one table), `nodejs22.x` arm64
