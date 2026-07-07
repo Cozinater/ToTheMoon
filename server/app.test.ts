@@ -171,3 +171,66 @@ describe("origin secret", () => {
     expect((await app.request("/api/draft", { headers: { "x-origin-secret": "s3cret" } })).status).toBe(200);
   });
 });
+
+function authApp() {
+  return createApp({
+    store: new MemoryStore(),
+    market: stubMarket(),
+    auth: { appPassword: "moon-pass", sessionToken: "tok-123" },
+  });
+}
+
+describe("session auth", () => {
+  it("login with the right password sets the exact session cookie", async () => {
+    const res = await authApp().request("/api/login", jsonReq("POST", { password: "moon-pass" }));
+    expect(res.status).toBe(200);
+    expect((await json(res)).ok).toBe(true);
+    const cookie = res.headers.get("set-cookie") ?? "";
+    expect(cookie).toContain("ttm_session=tok-123");
+    for (const attr of ["Max-Age=2592000", "Path=/", "HttpOnly", "Secure", "SameSite=Strict"]) {
+      expect(cookie).toContain(attr);
+    }
+  });
+
+  it("wrong password → 401 BAD_PASSWORD after the failure delay, no cookie", async () => {
+    const started = Date.now();
+    const res = await authApp().request("/api/login", jsonReq("POST", { password: "nope" }));
+    expect(Date.now() - started).toBeGreaterThanOrEqual(400);
+    expect(res.status).toBe(401);
+    expect((await json(res)).error).toBe("BAD_PASSWORD");
+    expect(res.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("malformed login body → 400 VALIDATION", async () => {
+    const res = await authApp().request("/api/login", jsonReq("POST", {}));
+    expect(res.status).toBe(400);
+    expect((await json(res)).error).toBe("VALIDATION");
+  });
+
+  it("data routes require the cookie: 401 UNAUTHORIZED without, 200 with", async () => {
+    const app = authApp();
+    const blocked = await app.request("/api/draft");
+    expect(blocked.status).toBe(401);
+    expect((await json(blocked)).error).toBe("UNAUTHORIZED");
+    const allowed = await app.request("/api/draft", { headers: { cookie: "ttm_session=tok-123" } });
+    expect(allowed.status).toBe(200);
+    const wrong = await app.request("/api/draft", { headers: { cookie: "ttm_session=evil" } });
+    expect(wrong.status).toBe(401);
+  });
+
+  it("logout is exempt and expires the cookie", async () => {
+    const res = await authApp().request("/api/logout", { method: "POST" });
+    expect(res.status).toBe(200);
+    const cookie = res.headers.get("set-cookie") ?? "";
+    expect(cookie).toContain("ttm_session=");
+    expect(cookie).toContain("Max-Age=0");
+  });
+
+  it("auth off (no deps.auth): login is a no-op ok, data routes open", async () => {
+    const app = makeApp();
+    const login = await app.request("/api/login", jsonReq("POST", { password: "anything" }));
+    expect((await json(login)).ok).toBe(true);
+    expect(login.headers.get("set-cookie")).toBeNull();
+    expect((await app.request("/api/draft")).status).toBe(200);
+  });
+});

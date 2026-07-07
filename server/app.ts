@@ -1,15 +1,25 @@
 import { Hono, type Context } from "hono";
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import {
   amendInputSchema, assetTypeSchema, closeInputSchema, draftInputSchema,
   emptyDraft, type AssetType, type Snapshot,
 } from "../shared/schema.ts";
 import { computeTotals } from "../shared/totals.ts";
+import {
+  LOGIN_FAILURE_DELAY_MS, SESSION_COOKIE, SESSION_MAX_AGE,
+  loginInputSchema, passwordMatches,
+} from "./auth.ts";
 import { MarketError, type MarketClient } from "./market.ts";
 import type { SnapshotStore } from "./store.ts";
 
-export type AppDeps = { store: SnapshotStore; market: MarketClient; originSecret?: string };
+export type AppDeps = {
+  store: SnapshotStore;
+  market: MarketClient;
+  originSecret?: string;
+  auth?: { appPassword: string; sessionToken: string };
+};
 
-export function createApp({ store, market, originSecret }: AppDeps) {
+export function createApp({ store, market, originSecret, auth }: AppDeps) {
   const app = new Hono();
 
   app.onError((err, c) => {
@@ -32,8 +42,38 @@ export function createApp({ store, market, originSecret }: AppDeps) {
     });
   }
 
+  const AUTH_EXEMPT = new Set(["/api/login", "/api/logout"]);
+
+  if (auth) {
+    api.use("*", async (c, next) => {
+      if (!AUTH_EXEMPT.has(c.req.path) && getCookie(c, SESSION_COOKIE) !== auth.sessionToken) {
+        return c.json({ error: "UNAUTHORIZED", message: "Sign in required" }, 401);
+      }
+      await next();
+    });
+  }
+
   const invalid = (c: Context, issues: unknown) =>
     c.json({ error: "VALIDATION", message: "Invalid payload", issues }, 400);
+
+  api.post("/login", async (c) => {
+    const parsed = loginInputSchema.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return invalid(c, parsed.error.issues);
+    if (!auth) return c.json({ ok: true }); // auth not configured (local dev)
+    if (!passwordMatches(parsed.data.password, auth.appPassword)) {
+      await new Promise((resolve) => setTimeout(resolve, LOGIN_FAILURE_DELAY_MS));
+      return c.json({ error: "BAD_PASSWORD", message: "Wrong password" }, 401);
+    }
+    setCookie(c, SESSION_COOKIE, auth.sessionToken, {
+      httpOnly: true, secure: true, sameSite: "Strict", path: "/", maxAge: SESSION_MAX_AGE,
+    });
+    return c.json({ ok: true });
+  });
+
+  api.post("/logout", (c) => {
+    deleteCookie(c, SESSION_COOKIE, { path: "/" });
+    return c.json({ ok: true });
+  });
 
   api.get("/draft", async (c) => c.json(await store.getDraft() ?? emptyDraft()));
 

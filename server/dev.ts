@@ -11,9 +11,13 @@ if (!twelveDataKey) {
   console.warn("[api] TWELVE_DATA_API_KEY not set (copy server/.env.example to server/.env) — quotes/fx will fail");
 }
 
+const appPassword = process.env.APP_PASSWORD;
+const sessionToken = process.env.SESSION_TOKEN;
+
 const app = createApp({
   store: new FileStore(fileURLToPath(new URL("../.data/store.json", import.meta.url))),
   market: createMarketClient({ twelveDataKey }),
+  auth: appPassword && sessionToken ? { appPassword, sessionToken } : undefined,
 });
 
 serve({ fetch: app.fetch, port: 8787 }, (info) =>
