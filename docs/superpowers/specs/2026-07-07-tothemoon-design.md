@@ -219,7 +219,10 @@ card row (Portfolio card subtitled "USD 109,350 @ 1.3280"); draft-snapshot
 card with Update Portfolio / Update Balances buttons linking to those screens.
 
 **Portfolio**: holdings table — ticker, type, quantity, price (USD), value
-(USD), % of total — sorted by value. Add Holding dialog (drawer on mobile):
+(USD), % of total — built on TanStack Table: filter tabs by asset type
+(All / Stocks / ETFs / Crypto), a ticker search box, and click-to-sort
+columns, sorted by value descending by default. Add Holding dialog (drawer on
+mobile):
 ticker, type, quantity, `asOf` date (user must pick; never pre-filled).
 Fetching calls `/api/quote` + `/api/fx` in parallel (the FX result updates the
 draft's `fxRate`), shows an animated shimmer on the price field, then the

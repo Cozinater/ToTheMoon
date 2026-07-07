@@ -1832,7 +1832,8 @@ git add src && git commit -m "feat: api client, currency formatting, draft/snaps
 
 **Interfaces:**
 - Consumes: `useDraft`/`useSaveDraft`, `api`/`ApiError`, `ResponsiveModal`, `EmptyState`/`ErrorState`, `round2` from `@shared/totals`, shadcn `button/input/label/select/alert-dialog/skeleton`.
-- Produces (reused by History Task 12): `HoldingsTable({ holdings, onEdit?, onDelete? })` — read-only when no callbacks; `HoldingForm({ open, onOpenChange, initial?, onSave(holding, fxRate) })`; `Quote` type in `types.ts`.
+- Produces (reused by History Task 12): `HoldingsTable({ holdings, onEdit?, onDelete?, filterable? })` — read-only when no callbacks, filter/search toolbar only when `filterable`; `HoldingForm({ open, onOpenChange, initial?, onSave(holding, fxRate) })`; `Quote` type in `types.ts`.
+- Table engine: **TanStack Table** (`@tanstack/react-table`, already a dependency) — asset-type filter tabs, ticker search (global filter), click-to-sort columns, default sort `valueUsd` descending.
 
 - [ ] **Step 1: Types + table**
 
@@ -1849,39 +1850,174 @@ export type FxResponse = { pair: "USD/SGD"; rate: number; asOf: string };
 `src/features/portfolio/components/holdings-table.tsx`:
 
 ```tsx
+import { useMemo, useState } from "react";
+import {
+  createColumnHelper, flexRender, getCoreRowModel, getFilteredRowModel,
+  getSortedRowModel, useReactTable,
+  type ColumnFiltersState, type SortingState,
+} from "@tanstack/react-table";
 import { AnimatePresence, motion } from "motion/react";
-import { Pencil, Trash2 } from "lucide-react";
+import { ArrowUpDown, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { Holding } from "@shared/schema";
+import { Input } from "@/components/ui/input";
+import type { AssetType, Holding } from "@shared/schema";
 import { pct, qty, usd } from "@/lib/format";
+
+const TYPE_TABS: { value: "all" | AssetType; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "stock", label: "Stocks" },
+  { value: "etf", label: "ETFs" },
+  { value: "crypto", label: "Crypto" },
+];
+
+// Per-column cell classes (also hides Type/Price on mobile to avoid horizontal scroll)
+const CELL_CLASS: Record<string, string> = {
+  ticker: "px-4 py-3",
+  type: "hidden px-4 py-3 sm:table-cell",
+  quantity: "px-4 py-3 text-right",
+  priceUsd: "hidden px-4 py-3 text-right sm:table-cell",
+  valueUsd: "px-4 py-3 text-right",
+  share: "px-4 py-3 text-right",
+  actions: "w-20 px-2 py-3 text-right whitespace-nowrap",
+};
 
 export function HoldingsTable(props: {
   holdings: Holding[];
   onEdit?: (h: Holding) => void;
   onDelete?: (h: Holding) => void;
+  filterable?: boolean;
 }) {
-  const total = props.holdings.reduce((acc, h) => acc + h.valueUsd, 0);
-  const sorted = [...props.holdings].sort((a, b) => b.valueUsd - a.valueUsd);
+  const [sorting, setSorting] = useState<SortingState>([{ id: "valueUsd", desc: true }]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [globalFilter, setGlobalFilter] = useState("");
   const readOnly = !props.onEdit && !props.onDelete;
+  const total = props.holdings.reduce((acc, h) => acc + h.valueUsd, 0);
+  const { onEdit, onDelete } = props;
+
+  const columns = useMemo(() => {
+    const col = createColumnHelper<Holding>();
+    return [
+      col.accessor("ticker", {
+        header: "Ticker",
+        cell: (c) => <span className="font-medium">{c.getValue()}</span>,
+      }),
+      col.accessor("type", {
+        header: "Type",
+        filterFn: "equals",
+        cell: (c) => <span className="capitalize text-muted-foreground">{c.getValue()}</span>,
+      }),
+      col.accessor("quantity", { header: "Qty", cell: (c) => qty(c.getValue()) }),
+      col.accessor("priceUsd", { header: "Price (USD)", cell: (c) => usd(c.getValue()) }),
+      col.accessor("valueUsd", { header: "Value (USD)", cell: (c) => usd(c.getValue()) }),
+      col.display({
+        id: "share",
+        header: "%",
+        cell: (c) => (
+          <span className="text-muted-foreground">
+            {total > 0 ? pct(c.row.original.valueUsd / total) : "–"}
+          </span>
+        ),
+      }),
+      ...(readOnly
+        ? []
+        : [
+            col.display({
+              id: "actions",
+              header: "",
+              cell: (c) => (
+                <>
+                  {onEdit && (
+                    <Button variant="ghost" size="icon" aria-label={`Edit ${c.row.original.ticker}`}
+                      onClick={() => onEdit(c.row.original)}>
+                      <Pencil className="size-4" />
+                    </Button>
+                  )}
+                  {onDelete && (
+                    <Button variant="ghost" size="icon" aria-label={`Delete ${c.row.original.ticker}`}
+                      onClick={() => onDelete(c.row.original)}>
+                      <Trash2 className="size-4" />
+                    </Button>
+                  )}
+                </>
+              ),
+            }),
+          ]),
+    ];
+  }, [total, readOnly, onEdit, onDelete]);
+
+  const table = useReactTable({
+    data: props.holdings,
+    columns,
+    state: { sorting, columnFilters, globalFilter },
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onGlobalFilterChange: setGlobalFilter,
+    globalFilterFn: (row, _columnId, value) =>
+      row.original.ticker.toUpperCase().includes(String(value).trim().toUpperCase()),
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+  });
+
+  const activeType = (columnFilters.find((f) => f.id === "type")?.value as AssetType | undefined) ?? "all";
+  const setType = (value: "all" | AssetType) =>
+    setColumnFilters(value === "all" ? [] : [{ id: "type", value }]);
+  const rows = table.getRowModel().rows;
+
   return (
     <div className="overflow-hidden rounded-2xl border border-border/60 bg-card">
+      {props.filterable && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/40 px-4 py-3">
+          <div className="flex gap-1">
+            {TYPE_TABS.map((t) => (
+              <Button key={t.value} size="sm" variant={activeType === t.value ? "secondary" : "ghost"}
+                onClick={() => setType(t.value)}>
+                {t.label}
+              </Button>
+            ))}
+          </div>
+          <Input
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            placeholder="Filter tickers…"
+            className="h-8 w-40"
+          />
+        </div>
+      )}
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-left text-xs uppercase tracking-widest text-muted-foreground">
-            <th className="px-4 py-3 font-medium">Ticker</th>
-            <th className="hidden px-4 py-3 font-medium sm:table-cell">Type</th>
-            <th className="px-4 py-3 text-right font-medium">Qty</th>
-            <th className="hidden px-4 py-3 text-right font-medium sm:table-cell">Price (USD)</th>
-            <th className="px-4 py-3 text-right font-medium">Value (USD)</th>
-            <th className="px-4 py-3 text-right font-medium">%</th>
-            {!readOnly && <th className="w-20" />}
-          </tr>
+          {table.getHeaderGroups().map((hg) => (
+            <tr key={hg.id} className="text-left text-xs uppercase tracking-widest text-muted-foreground">
+              {hg.headers.map((header) => (
+                <th key={header.id} className={`${CELL_CLASS[header.column.id]} font-medium`}>
+                  {header.column.getCanSort() ? (
+                    <button
+                      className="inline-flex items-center gap-1"
+                      onClick={header.column.getToggleSortingHandler()}
+                    >
+                      {flexRender(header.column.columnDef.header, header.getContext())}
+                      <ArrowUpDown className="size-3" />
+                    </button>
+                  ) : (
+                    flexRender(header.column.columnDef.header, header.getContext())
+                  )}
+                </th>
+              ))}
+            </tr>
+          ))}
         </thead>
         <tbody>
           <AnimatePresence initial={false}>
-            {sorted.map((h) => (
+            {rows.length === 0 && props.holdings.length > 0 && (
+              <tr>
+                <td colSpan={readOnly ? 6 : 7} className="px-4 py-6 text-center text-muted-foreground">
+                  No holdings match.
+                </td>
+              </tr>
+            )}
+            {rows.map((row) => (
               <motion.tr
-                key={h.id}
+                key={row.original.id}
                 layout
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1889,28 +2025,11 @@ export function HoldingsTable(props: {
                 transition={{ duration: 0.25, ease: "easeOut" }}
                 className="border-t border-border/40"
               >
-                <td className="px-4 py-3 font-medium">{h.ticker}</td>
-                <td className="hidden px-4 py-3 capitalize text-muted-foreground sm:table-cell">{h.type}</td>
-                <td className="px-4 py-3 text-right">{qty(h.quantity)}</td>
-                <td className="hidden px-4 py-3 text-right sm:table-cell">{usd(h.priceUsd)}</td>
-                <td className="px-4 py-3 text-right">{usd(h.valueUsd)}</td>
-                <td className="px-4 py-3 text-right text-muted-foreground">
-                  {total > 0 ? pct(h.valueUsd / total) : "–"}
-                </td>
-                {!readOnly && (
-                  <td className="px-2 py-3 text-right whitespace-nowrap">
-                    {props.onEdit && (
-                      <Button variant="ghost" size="icon" aria-label={`Edit ${h.ticker}`} onClick={() => props.onEdit!(h)}>
-                        <Pencil className="size-4" />
-                      </Button>
-                    )}
-                    {props.onDelete && (
-                      <Button variant="ghost" size="icon" aria-label={`Delete ${h.ticker}`} onClick={() => props.onDelete!(h)}>
-                        <Trash2 className="size-4" />
-                      </Button>
-                    )}
+                {row.getVisibleCells().map((cell) => (
+                  <td key={cell.id} className={CELL_CLASS[cell.column.id]}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
-                )}
+                ))}
               </motion.tr>
             ))}
           </AnimatePresence>
@@ -2195,6 +2314,7 @@ function PortfolioPage() {
       ) : (
         <HoldingsTable
           holdings={draft.holdings}
+          filterable
           onEdit={(h) => { setEditing(h); setFormOpen(true); }}
           onDelete={setDeleting}
         />
@@ -2230,7 +2350,7 @@ function PortfolioPage() {
 
 - [ ] **Step 4: Verify + commit**
 
-Run: `npm run build` → clean. With `npm run dev` (real Twelve Data key in `server/.env`): add `AAPL` stock — shimmer then a real price appears, Save disabled until a date is picked; add `VOO` etf and `BTC` crypto; add ticker `VOOO` → inline error, Save stays disabled, inputs preserved; edit a quantity → value updates; delete a row → confirm → row animates out; Refresh prices updates all rows; at 375 px wide, no horizontal scroll (Type/Price columns hidden).
+Run: `npm run build` → clean. With `npm run dev` (real Twelve Data key in `server/.env`): add `AAPL` stock — shimmer then a real price appears, Save disabled until a date is picked; add `VOO` etf and `BTC` crypto; add ticker `VOOO` → inline error, Save stays disabled, inputs preserved; edit a quantity → value updates; delete a row → confirm → row animates out; Refresh prices updates all rows; type tabs (All/Stocks/ETFs/Crypto) filter the rows and the search box narrows by ticker (with a "No holdings match." row when nothing matches); clicking Qty/Price/Value headers re-sorts; at 375 px wide, no horizontal scroll (Type/Price columns hidden).
 
 ```bash
 git add src && git commit -m "feat: portfolio screen with quote fetch, batch refresh, animated table"
@@ -4129,7 +4249,7 @@ git add scripts README.md && git commit -m "feat: deploy script and deployment d
 ## Plan self-review notes (kept for the record)
 
 - **Spec coverage:** every spec section maps to a task — schemas/limits (T2), store + immutable create (T3/T14), market proxies incl. batch + USD-only guard (T4), full API contract (T5), local dev (T6), theme/shell/naming (T7), data layer (T8), the five screens (T9–T13), packaging (T14), infra + auth layers (T15), deploy (T16). Acceptance criteria 1–10 in the spec are exercised by T9 (1, 7), T10 (2), T5 tests (3, 6, 10), T11 (4), T12 (5, 6), T7 (8), T15 (9).
-- **Known judgment calls:** TanStack Table skipped (single fixed-sort table — plain `<table>` + motion is less code); RHF skipped in forms (4 controlled fields + a quote state machine is clearer with `useState`; RHF stays a dependency for future use). Both deviate from STACK.md's tool list, not from any requirement.
+- **Known judgment calls:** RHF skipped in forms (4 controlled fields + a quote state machine is clearer with `useState`; RHF stays a dependency for future use) — deviates from STACK.md's tool list, not from any requirement. HoldingsTable uses TanStack Table (type filter tabs, ticker search, sortable columns) per Raymond's filtering requirement; the toolbar renders only with `filterable` (Portfolio), so History reuse stays read-only and toolbar-free.
 - **Type consistency check:** `SnapshotStore` method names, `createApp` deps, `MarketClient` shape, hook signatures, and component props were cross-checked across tasks (`HoldingsTable`/`HoldingForm`/`SectionCard`/`EntryForm` reused in T12 exactly as defined in T9/T10).
 
 
