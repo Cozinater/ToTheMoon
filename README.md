@@ -65,3 +65,23 @@ src/
   `@tanstack/router-plugin` and wire it into `vite.config.ts`.)
 - **Adding a component:** use the shadcn CLI — it drops primitives into
   `src/components/ui/`. Don't hand-edit those.
+
+## Configuration
+
+- `server/.env` (local dev): copy `server/.env.example`, add your Twelve Data API key.
+- `infra/terraform.tfvars` (deploy): copy `infra/terraform.tfvars.example` — basic-auth
+  credentials, a long random `origin_secret`, and the Twelve Data key. Both files are gitignored.
+
+## Deploying
+
+One-time: `terraform -chdir=infra init`, AWS credentials configured (`aws configure`), and
+`infra/terraform.tfvars` filled in.
+
+Then every deploy is:
+
+```bash
+./scripts/deploy.sh
+```
+
+It builds the SPA and Lambda, `terraform apply`s infra + code, syncs `dist/` to S3, and
+invalidates `index.html`. The app is served at the CloudFront URL behind HTTP Basic auth.
