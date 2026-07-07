@@ -8,6 +8,11 @@ variable "session_token" {
   description = "Opaque session-cookie value; generate with: openssl rand -base64 32 | tr '+/' '-_'"
   type        = string
   sensitive   = true
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9=_-]+$", var.session_token))
+    error_message = "session_token must contain only A-Z, a-z, 0-9, '-', '_' or '=' (no quotes/backslashes — they would break the CloudFront Function template)."
+  }
 }
 
 variable "origin_secret" {
