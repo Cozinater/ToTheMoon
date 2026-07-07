@@ -47,14 +47,14 @@ function PortfolioPage() {
 
   const totalUsd = round2(draft.holdings.reduce((acc, h) => acc + h.valueUsd, 0));
 
-  const upsert = (holding: Holding, fxRate: number) => {
+  const upsert = (holding: Holding, fxRate?: number) => {
     const exists = draft.holdings.some((h) => h.id === holding.id);
     save.mutate({
       ...draft,
       holdings: exists
         ? draft.holdings.map((h) => (h.id === holding.id ? holding : h))
         : [...draft.holdings, holding],
-      fxRate,
+      fxRate: fxRate ?? draft.fxRate,
     });
   };
 

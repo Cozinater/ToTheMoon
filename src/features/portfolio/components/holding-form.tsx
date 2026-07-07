@@ -16,14 +16,14 @@ import type { FxResponse, Quote } from "../types";
 type QuoteState =
   | { status: "idle" }
   | { status: "loading" }
-  | { status: "ok"; quote: Quote; fxRate: number }
+  | { status: "ok"; quote: Quote; fxRate?: number }
   | { status: "error"; message: string };
 
 export function HoldingForm(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initial?: Holding;
-  onSave: (holding: Holding, fxRate: number) => void;
+  onSave: (holding: Holding, fxRate?: number) => void;
 }) {
   const [ticker, setTicker] = useState("");
   const [type, setType] = useState<AssetType>("stock");
@@ -37,7 +37,20 @@ export function HoldingForm(props: {
     setType(props.initial?.type ?? "stock");
     setQuantityStr(props.initial ? String(props.initial.quantity) : "");
     setAsOf(props.initial?.asOf ?? "");
-    setQuote({ status: "idle" });
+    if (props.initial) {
+      setQuote({
+        status: "ok",
+        quote: {
+          symbol: props.initial.ticker,
+          type: props.initial.type,
+          priceUsd: props.initial.priceUsd,
+          asOf: props.initial.asOf,
+        },
+        fxRate: undefined,
+      });
+    } else {
+      setQuote({ status: "idle" });
+    }
   }, [props.open, props.initial]);
 
   async function fetchQuote() {
@@ -129,7 +142,10 @@ export function HoldingForm(props: {
           {quote.status === "ok" && (
             <span>
               {usd(quote.quote.priceUsd)}
-              <span className="text-muted-foreground"> · EOD {dateLabel(quote.quote.asOf)} · USD/SGD {quote.fxRate}</span>
+              <span className="text-muted-foreground">
+                {" · EOD "}{dateLabel(quote.quote.asOf)}
+                {quote.fxRate !== undefined ? ` · USD/SGD ${quote.fxRate}` : ""}
+              </span>
             </span>
           )}
           {quote.status === "error" && <span className="text-destructive">{quote.message}</span>}
@@ -137,7 +153,7 @@ export function HoldingForm(props: {
 
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => props.onOpenChange(false)}>Cancel</Button>
-          {quote.status === "error" || quote.status === "idle" ? (
+          {(quote.status === "error" || quote.status === "idle" || quote.status === "ok") ? (
             <Button variant="outline" onClick={fetchQuote} disabled={!ticker.trim()}>Fetch price</Button>
           ) : null}
           <Button onClick={save} disabled={!canSave}>Save holding</Button>
