@@ -4,3 +4,41 @@
 @import "@fontsource-variable/inter";
 
 @custom-variant dark (&:is(.dark *));
+
+@import "@fontsource/instrument-serif";
+
+:root {
+  --background: #0b120e;
+  --foreground: #edeee8;
+  --card: #101913;
+  --card-foreground: #edeee8;
+  --popover: #0f1712;
+  --popover-foreground: #edeee8;
+  --primary: #e3c878;
+  --primary-foreground: #1a1607;
+  --secondary: #1a241e;
+  --secondary-foreground: #edeee8;
+  --muted: #16201a;
+  --muted-foreground: #9aa89e;
+  --accent: #1c271f;
+  --accent-foreground: #edeee8;
+  --destructive: #e37878;
+  --destructive-foreground: #2a0e0e;
+  --border: #223028;
+  --input: #223028;
+  --ring: #e3c878;
+  --radius: 1rem;
+}
+
+@theme inline {
+  --font-display: "Instrument Serif", ui-serif, Georgia, serif;
+}
+
+body {
+  background: radial-gradient(1200px 800px at 15% -10%, #13241a 0%, var(--background) 55%) fixed;
+  color: var(--foreground);
+}
+
+@utility glow {
+  text-shadow: 0 0 24px rgb(242 239 227 / 0.35), 0 0 64px rgb(242 239 227 / 0.15);
+}

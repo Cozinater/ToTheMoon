@@ -2,12 +2,12 @@ import { createRoute } from "@tanstack/react-router";
 import { rootRoute } from "@/routes/__root";
 import { PageHeader } from "@/components/page-header";
 
-export const indexRoute = createRoute({
+export const portfolioRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/",
-  component: HomePage,
+  path: "/portfolio",
+  component: PortfolioPage,
 });
 
-function HomePage() {
-  return <PageHeader eyebrow="TOTAL NET WORTH" title="Dashboard" />;
+function PortfolioPage() {
+  return <PageHeader eyebrow="PORTFOLIO (USD)" title="Portfolio" />;
 }
