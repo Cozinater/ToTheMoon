@@ -2,6 +2,11 @@ variable "app_password" {
   description = "The single password the login page accepts"
   type        = string
   sensitive   = true
+
+  validation {
+    condition     = length(var.app_password) >= 12
+    error_message = "app_password must be at least 12 characters."
+  }
 }
 
 variable "session_token" {

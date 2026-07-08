@@ -56,7 +56,7 @@ export function SignInCard() {
         <div className="grid gap-1.5">
           <Label htmlFor="password">Password</Label>
           <Input
-            id="password" type="password" autoFocus
+            id="password" type="password" autoFocus autoComplete="current-password"
             value={password} onChange={(e) => setPassword(e.target.value)}
           />
         </div>

@@ -5,7 +5,7 @@ export const SESSION_COOKIE = "ttm_session";
 export const SESSION_MAX_AGE = 2592000; // 30 days
 export const LOGIN_FAILURE_DELAY_MS = 500;
 
-export const loginInputSchema = z.object({ password: z.string().min(1) });
+export const loginInputSchema = z.object({ password: z.string().min(1).max(1024) });
 
 const sha256 = (value: string) => createHash("sha256").update(value).digest();
 
