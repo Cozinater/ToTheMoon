@@ -1,46 +1,111 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/inter";
+@import "@fontsource-variable/manrope";
+@import "@fontsource-variable/sora";
+@import "@fontsource/instrument-serif";
 
 @custom-variant dark (&:is(.dark *));
 
-@import "@fontsource/instrument-serif";
-
 :root {
-  --background: #0b120e;
-  --foreground: #edeee8;
-  --card: #101913;
-  --card-foreground: #edeee8;
-  --popover: #0f1712;
-  --popover-foreground: #edeee8;
-  --primary: #e3c878;
-  --primary-foreground: #1a1607;
-  --secondary: #1a241e;
-  --secondary-foreground: #edeee8;
-  --muted: #16201a;
-  --muted-foreground: #9aa89e;
-  --accent: #1c271f;
-  --accent-foreground: #edeee8;
-  --destructive: #e37878;
-  --destructive-foreground: #2a0e0e;
-  --border: #223028;
-  --input: #223028;
-  --ring: #e3c878;
+  --background: #0d1a16;
+  --foreground: #f4ecdc;
+  --card: #132420;
+  --card-foreground: #f4ecdc;
+  --popover: #132420;
+  --popover-foreground: #f4ecdc;
+  --primary: #e8c069;
+  --primary-foreground: #241a05;
+  --secondary: #1e2f2a;
+  --secondary-foreground: #f4ecdc;
+  --muted: #1a2a25;
+  --muted-foreground: #9db2a4;
+  --accent: #2c4a41;
+  --accent-foreground: #f4ecdc;
+  --destructive: #e0604e;
+  --destructive-foreground: #38100a;
+  --border: rgb(55 84 76 / 0.55);
+  --input: #1e2f2a;
+  --ring: #e8c069;
   --radius: 1rem;
+
+  --sidebar: #08130f;
+  --gold-soft: #f0d391;
+  --cream: #f7e9c9;
+  --emerald: #4fa984;
+  --emerald-soft: #83c4a8;
+  --positive: #5fd18a;
+  --negative: #ee7566;
+
+  --chart-1: #e8c069; /* portfolio — gold */
+  --chart-2: #7cc0a1; /* savings — emerald */
+  --chart-3: #f2e2b6; /* cpf — cream */
+  --chart-4: #69a5b3; /* property — teal */
+  --chart-5: #d6664f; /* credit cards — warm red */
+  --chart-6: #c04a3f; /* loans — deep red */
 }
 
 @theme inline {
-  --font-display: "Instrument Serif", ui-serif, Georgia, serif;
+  --font-sans: "Manrope Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Sora Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Instrument Serif", ui-serif, Georgia, serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-sidebar: var(--sidebar);
+  --color-gold-soft: var(--gold-soft);
+  --color-cream: var(--cream);
+  --color-emerald: var(--emerald);
+  --color-emerald-soft: var(--emerald-soft);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
 }
 
 body {
-  background: radial-gradient(1200px 800px at 15% -10%, #13241a 0%, var(--background) 55%) fixed;
+  background:
+    radial-gradient(1100px 720px at 12% -8%, #17332b 0%, transparent 60%),
+    radial-gradient(900px 640px at 105% 8%, #122822 0%, transparent 55%),
+    var(--background);
+  background-attachment: fixed;
   color: var(--foreground);
 }
 
+/* Cream halo for the hero net-worth figure */
 @utility glow {
-  text-shadow: 0 0 24px rgb(242 239 227 / 0.35), 0 0 64px rgb(242 239 227 / 0.15);
+  text-shadow: 0 0 24px rgb(247 233 201 / 0.35), 0 0 80px rgb(247 233 201 / 0.15);
+}
+
+/* Elevated card: soft top-left light wash over the card green + token border */
+@utility surface {
+  background:
+    linear-gradient(150deg, rgb(244 236 220 / 0.05) 0%, rgb(244 236 220 / 0.015) 45%, rgb(0 0 0 / 0.08) 100%),
+    var(--card);
+  border: 1px solid var(--border);
 }
 
 @utility cn-font-heading {

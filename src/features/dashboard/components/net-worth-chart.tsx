@@ -3,12 +3,12 @@ import { compactSgd, sgd } from "@/lib/format";
 import type { ChartPoint } from "../hooks/use-dashboard-data";
 
 const SERIES = [
-  { key: "portfolio", label: "Portfolio", color: "#e8c468", stack: "pos" },
-  { key: "savings", label: "Savings", color: "#6fcf97", stack: "pos" },
-  { key: "cpf", label: "CPF", color: "#f2efe3", stack: "pos" },
-  { key: "property", label: "Property", color: "#4fbdba", stack: "pos" },
-  { key: "creditCards", label: "Credit Cards", color: "#e37878", stack: "neg" },
-  { key: "loans", label: "Loans", color: "#d9648c", stack: "neg" },
+  { key: "portfolio", label: "Portfolio", color: "var(--chart-1)", stack: "pos" },
+  { key: "savings", label: "Savings", color: "var(--chart-2)", stack: "pos" },
+  { key: "cpf", label: "CPF", color: "var(--chart-3)", stack: "pos" },
+  { key: "property", label: "Property", color: "var(--chart-4)", stack: "pos" },
+  { key: "creditCards", label: "Credit Cards", color: "var(--chart-5)", stack: "neg" },
+  { key: "loans", label: "Loans", color: "var(--chart-6)", stack: "neg" },
 ] as const;
 
 type TooltipEntry = { name?: string; value?: number; color?: string; payload?: ChartPoint };
@@ -34,29 +34,31 @@ function ChartTooltip(props: { active?: boolean; label?: string; payload?: Toolt
 
 export function NetWorthChart({ points }: { points: ChartPoint[] }) {
   return (
-    <div className="rounded-2xl border border-border/60 bg-card p-5">
+    <div className="surface rounded-3xl p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="font-medium">Net worth over time</h2>
-        <span className="text-xs text-muted-foreground">{points.length} points</span>
+        <h2 className="font-display text-lg font-semibold tracking-tight">Net worth over time</h2>
+        <span className="text-xs text-muted-foreground">
+          {points.length} {points.length === 1 ? "snapshot" : "snapshots"}
+        </span>
       </div>
-      <div className="h-72">
+      <div className="h-80 md:h-96">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
             <defs>
               {SERIES.map((s) => (
                 <linearGradient key={s.key} id={`fill-${s.key}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={s.color} stopOpacity={0.35} />
-                  <stop offset="100%" stopColor={s.color} stopOpacity={0.05} />
+                  <stop offset="0%" stopColor={s.color} stopOpacity={0.5} />
+                  <stop offset="100%" stopColor={s.color} stopOpacity={0.06} />
                 </linearGradient>
               ))}
             </defs>
-            <CartesianGrid stroke="#223028" strokeDasharray="4 6" vertical={false} />
-            <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "#9aa89e", fontSize: 12 }} />
-            <YAxis tickFormatter={compactSgd} tickLine={false} axisLine={false} width={72} tick={{ fill: "#9aa89e", fontSize: 12 }} />
+            <CartesianGrid stroke="rgb(244 236 220 / 0.07)" strokeDasharray="4 6" vertical={false} />
+            <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "#9db2a4", fontSize: 12 }} />
+            <YAxis tickFormatter={compactSgd} tickLine={false} axisLine={false} width={72} tick={{ fill: "#9db2a4", fontSize: 12 }} />
             <Tooltip content={<ChartTooltip />} />
             {SERIES.map((s) => (
               <Area key={s.key} type="monotone" dataKey={s.key} stackId={s.stack} name={s.label}
-                stroke={s.color} strokeWidth={1.5} fill={`url(#fill-${s.key})`} />
+                stroke={s.color} strokeWidth={2} fill={`url(#fill-${s.key})`} />
             ))}
           </AreaChart>
         </ResponsiveContainer>

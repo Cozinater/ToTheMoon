@@ -4,12 +4,12 @@ import type { Totals } from "@shared/schema";
 import { sgd } from "@/lib/format";
 
 const CARDS = [
-  { key: "portfolioSgd", label: "Portfolio", icon: TrendingUp, liability: false },
-  { key: "savingsSgd", label: "Savings", icon: PiggyBank, liability: false },
-  { key: "cpfSgd", label: "CPF", icon: Landmark, liability: false },
-  { key: "propertySgd", label: "Property", icon: Building2, liability: false },
-  { key: "creditCardsSgd", label: "Credit Cards", icon: CreditCard, liability: true },
-  { key: "loansSgd", label: "Loans", icon: Banknote, liability: true },
+  { key: "portfolioSgd", label: "Portfolio", icon: TrendingUp, liability: false, chip: "bg-chart-1/12 text-chart-1" },
+  { key: "savingsSgd", label: "Savings", icon: PiggyBank, liability: false, chip: "bg-chart-2/12 text-chart-2" },
+  { key: "cpfSgd", label: "CPF", icon: Landmark, liability: false, chip: "bg-chart-3/12 text-chart-3" },
+  { key: "propertySgd", label: "Property", icon: Building2, liability: false, chip: "bg-chart-4/12 text-chart-4" },
+  { key: "creditCardsSgd", label: "Credit Cards", icon: CreditCard, liability: true, chip: "bg-chart-5/15 text-negative" },
+  { key: "loansSgd", label: "Loans", icon: Banknote, liability: true, chip: "bg-chart-6/15 text-negative" },
 ] as const;
 
 export function SummaryCards({ totals, fxRate }: { totals: Totals; fxRate?: number }) {
@@ -26,13 +26,17 @@ export function SummaryCards({ totals, fxRate }: { totals: Totals; fxRate?: numb
           <motion.div
             key={c.key}
             variants={{ hidden: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0 } }}
-            className="rounded-2xl border border-border/60 bg-card p-4"
+            className="surface rounded-2xl p-4"
           >
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{c.label}</span>
-              <Icon className={c.liability ? "size-4 text-destructive" : "size-4 text-emerald-300"} />
+            <div className="mb-4 flex items-center justify-between">
+              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+                {c.label}
+              </span>
+              <span className={`flex size-9 items-center justify-center rounded-full ${c.chip}`}>
+                <Icon className="size-4" />
+              </span>
             </div>
-            <div className={value < 0 ? "text-lg font-semibold text-destructive" : "text-lg font-semibold"}>
+            <div className="text-xl font-semibold tracking-tight text-cream md:text-2xl">
               {sgd(value)}
             </div>
             {c.key === "portfolioSgd" && fxRate != null && (

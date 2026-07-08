@@ -10,8 +10,8 @@ export function PageHeader(props: { eyebrow: string; title: string; action?: Rea
       className="mb-6 flex flex-wrap items-end justify-between gap-4"
     >
       <div>
-        <div className="text-xs uppercase tracking-[0.25em] text-muted-foreground">{props.eyebrow}</div>
-        <h1 className="font-display text-4xl text-foreground md:text-5xl">{props.title}</h1>
+        <div className="text-xs font-medium uppercase tracking-[0.28em] text-muted-foreground">{props.eyebrow}</div>
+        <h1 className="mt-2 font-display text-4xl font-bold tracking-tight text-cream md:text-5xl">{props.title}</h1>
       </div>
       {props.action}
     </motion.header>

@@ -8,17 +8,17 @@ export function SnapshotRow(props: { summary: SnapshotSummary; expanded: boolean
   const s = props.summary;
   return (
     <motion.div layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-      className="overflow-hidden rounded-2xl border border-border/60 bg-card">
-      <button onClick={props.onToggle} className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
+      className="surface overflow-hidden rounded-3xl">
+      <button onClick={props.onToggle} className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left"
         aria-expanded={props.expanded}>
         <div>
-          <div className="font-medium">{dateLabel(s.snapshotDate)}</div>
-          <div className="text-xs text-muted-foreground">FX USD/SGD: {s.fxRate.toFixed(4)}</div>
+          <div className="font-display text-lg font-semibold tracking-tight">{dateLabel(s.snapshotDate)}</div>
+          <div className="mt-0.5 text-sm text-muted-foreground">FX USD/SGD: {s.fxRate.toFixed(4)}</div>
         </div>
         <div className="flex items-center gap-3">
           <div className="text-right">
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Net worth</div>
-            <div className="text-lg font-semibold">{sgd(s.totals.netWorthSgd)}</div>
+            <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Net worth</div>
+            <div className="text-xl font-semibold tracking-tight text-cream md:text-2xl">{sgd(s.totals.netWorthSgd)}</div>
           </div>
           <motion.span animate={{ rotate: props.expanded ? 180 : 0 }}>
             <ChevronDown className="size-4 text-muted-foreground" />

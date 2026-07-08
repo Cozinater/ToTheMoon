@@ -18,13 +18,13 @@ export function SessionCard() {
   }
 
   return (
-    <section className="rounded-2xl border border-border/60 bg-card p-6">
-      <div className="mb-4 flex items-center gap-3">
-        <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+    <section className="surface rounded-3xl p-6">
+      <div className="mb-5 flex items-center gap-3.5">
+        <div className="flex size-11 items-center justify-center rounded-full bg-primary/12 text-primary">
           <LogOut className="size-5" />
         </div>
         <div>
-          <h2 className="font-medium">Session</h2>
+          <h2 className="font-display text-lg font-semibold tracking-tight">Session</h2>
           <p className="text-sm text-muted-foreground">
             Signs this browser out. Other devices stay signed in.
           </p>

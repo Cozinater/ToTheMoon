@@ -25,30 +25,33 @@ export function SectionCard(props: {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
-      className="rounded-2xl border border-border/60 bg-card p-5"
+      className="surface rounded-3xl p-6"
     >
       <div className="mb-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3.5">
           <div
             className={
               negative
-                ? "flex size-10 items-center justify-center rounded-full bg-destructive/15 text-destructive"
-                : "flex size-10 items-center justify-center rounded-full bg-emerald-400/15 text-emerald-300"
+                ? "flex size-11 items-center justify-center rounded-full bg-chart-6/20 text-negative"
+                : "flex size-11 items-center justify-center rounded-full bg-emerald/25 text-emerald-soft"
             }
           >
             <Icon className="size-5" />
           </div>
           <div>
-            <div className="font-medium">{props.title}</div>
-            <div className="text-xs text-muted-foreground">
-              {negative && total > 0 ? "-" : ""}{sgd(total)} · {props.entries.length}/
+            <div className="font-display text-lg font-semibold tracking-tight">{props.title}</div>
+            <div className="text-sm text-muted-foreground">
+              {sgd(total)} · {props.entries.length}/
               {Number.isFinite(props.limit) ? props.limit : "∞"}
             </div>
           </div>
         </div>
         {props.onAdd && (
-          <Button variant="ghost" size="sm" onClick={props.onAdd} disabled={atLimit}
-            title={atLimit ? "Max reached" : undefined}>
+          <Button
+            variant="ghost" size="sm" onClick={props.onAdd} disabled={atLimit}
+            className="text-primary hover:bg-primary/10 hover:text-primary"
+            title={atLimit ? "Max reached" : undefined}
+          >
             <Plus className="size-4" /> Add
           </Button>
         )}
@@ -67,16 +70,15 @@ export function SectionCard(props: {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, height: 0, overflow: "hidden" }}
                 transition={{ duration: 0.25, ease: "easeOut" }}
-                className="flex items-center justify-between gap-3 border-t border-border/40 py-3 first:border-t-0"
+                className="flex items-center justify-between gap-3 border-t border-border/50 py-3.5 first:border-t-0"
               >
                 <div>
-                  <div className="text-sm font-medium">{e.name}</div>
-                  <div className="text-xs text-muted-foreground">as of {dateLabel(e.asOf)}</div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className={negative ? "text-sm text-destructive" : "text-sm"}>
+                  <div className="font-medium">{e.name}</div>
+                  <div className="mt-0.5 text-sm text-muted-foreground" title={`as of ${dateLabel(e.asOf)}`}>
                     {negative ? "-" : ""}{sgd(e.balanceSgd)}
-                  </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 text-muted-foreground">
                   {props.onEdit && (
                     <Button variant="ghost" size="icon" aria-label={`Edit ${e.name}`} onClick={() => props.onEdit!(e)}>
                       <Pencil className="size-4" />

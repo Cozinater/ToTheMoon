@@ -20,13 +20,13 @@ const TYPE_TABS: { value: "all" | AssetType; label: string }[] = [
 
 // Per-column cell classes (also hides Type/Price on mobile to avoid horizontal scroll)
 const CELL_CLASS: Record<string, string> = {
-  ticker: "px-4 py-3",
-  type: "hidden px-4 py-3 sm:table-cell",
-  quantity: "px-4 py-3 text-right",
-  priceUsd: "hidden px-4 py-3 text-right sm:table-cell",
-  valueUsd: "px-4 py-3 text-right",
-  share: "px-4 py-3 text-right",
-  actions: "w-20 px-2 py-3 text-right whitespace-nowrap",
+  ticker: "px-5 py-4",
+  type: "hidden px-5 py-4 sm:table-cell",
+  quantity: "px-5 py-4 text-right",
+  priceUsd: "hidden px-5 py-4 text-right sm:table-cell",
+  valueUsd: "px-5 py-4 text-right",
+  share: "px-5 py-4 text-right",
+  actions: "w-24 px-3 py-4 text-right whitespace-nowrap",
 };
 
 export function HoldingsTable(props: {
@@ -47,7 +47,7 @@ export function HoldingsTable(props: {
     return [
       col.accessor("ticker", {
         header: "Ticker",
-        cell: (c) => <span className="font-medium">{c.getValue()}</span>,
+        cell: (c) => <span className="font-semibold">{c.getValue()}</span>,
       }),
       col.accessor("type", {
         header: "Type",
@@ -113,9 +113,9 @@ export function HoldingsTable(props: {
   const rows = table.getRowModel().rows;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/60 bg-card">
+    <div className="surface overflow-hidden rounded-3xl">
       {props.filterable && (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/40 px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 px-5 py-3">
           <div className="flex gap-1">
             {TYPE_TABS.map((t) => (
               <Button key={t.value} size="sm" variant={activeType === t.value ? "secondary" : "ghost"}
@@ -135,7 +135,7 @@ export function HoldingsTable(props: {
       <table className="w-full text-sm">
         <thead>
           {table.getHeaderGroups().map((hg) => (
-            <tr key={hg.id} className="text-left text-xs uppercase tracking-widest text-muted-foreground">
+            <tr key={hg.id} className="text-left text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
               {hg.headers.map((header) => (
                 <th key={header.id} className={`${CELL_CLASS[header.column.id]} font-medium`}>
                   {header.column.getCanSort() ? (
@@ -171,7 +171,7 @@ export function HoldingsTable(props: {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.25, ease: "easeOut" }}
-                className="border-t border-border/40"
+                className="border-t border-border/50"
               >
                 {row.getVisibleCells().map((cell) => (
                   <td key={cell.id} className={CELL_CLASS[cell.column.id]}>

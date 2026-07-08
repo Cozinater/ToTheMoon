@@ -148,7 +148,7 @@ export function HoldingForm(props: {
               </span>
             </span>
           )}
-          {quote.status === "error" && <span className="text-destructive">{quote.message}</span>}
+          {quote.status === "error" && <span className="text-negative">{quote.message}</span>}
         </div>
 
         <div className="flex justify-end gap-2">

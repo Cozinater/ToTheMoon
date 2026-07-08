@@ -63,13 +63,13 @@ export function CloseMonthCard() {
   }
 
   return (
-    <section className="rounded-2xl border border-border/60 bg-card p-6">
-      <div className="mb-4 flex items-center gap-3">
-        <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+    <section className="surface rounded-3xl p-6">
+      <div className="mb-5 flex items-center gap-3.5">
+        <div className="flex size-11 items-center justify-center rounded-full bg-primary/12 text-primary">
           <Lock className="size-5" />
         </div>
         <div>
-          <h2 className="font-medium">Close month</h2>
+          <h2 className="font-display text-lg font-semibold tracking-tight">Close month</h2>
           <p className="text-sm text-muted-foreground">
             Locks the current draft into a read-only snapshot. The draft carries forward into a new month.
           </p>
@@ -77,10 +77,10 @@ export function CloseMonthCard() {
       </div>
 
       {totals && counts && (
-        <div className="mb-4 rounded-xl bg-muted/40 px-4 py-3">
-          <div className="text-xs uppercase tracking-widest text-muted-foreground">Current draft</div>
-          <div className="font-display text-3xl">{sgd(totals.netWorthSgd)}</div>
-          <div className="text-xs text-muted-foreground">
+        <div className="mb-5 rounded-2xl border border-border/40 bg-secondary/40 px-5 py-4">
+          <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Current draft</div>
+          <div className="mt-1 font-display text-3xl font-semibold tracking-tight text-cream">{sgd(totals.netWorthSgd)}</div>
+          <div className="mt-1 text-sm text-muted-foreground">
             {counts.holdings} holdings · {counts.assets} assets · {counts.liabilities} liabilities
           </div>
         </div>
@@ -104,12 +104,12 @@ export function CloseMonthCard() {
       </div>
 
       {note && (
-        <p className={note.kind === "ok" ? "mt-3 text-sm text-emerald-400" : "mt-3 text-sm text-destructive"}>
+        <p className={note.kind === "ok" ? "mt-3 text-sm text-positive" : "mt-3 text-sm text-negative"}>
           {note.text}
         </p>
       )}
 
-      <Button className="mt-4" disabled={snapshotDate === "" || close.isPending} onClick={() => setConfirmOpen(true)}>
+      <Button className="mt-5" disabled={snapshotDate === "" || close.isPending} onClick={() => setConfirmOpen(true)}>
         <Lock className="size-4" /> {close.isPending ? "Closing…" : "Close month and snapshot"}
       </Button>
 

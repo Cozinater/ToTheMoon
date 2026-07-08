@@ -39,15 +39,15 @@ export function SignInCard() {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
-      className="w-full max-w-sm rounded-2xl border border-border/60 bg-card p-8"
+      className="surface w-full max-w-sm rounded-3xl p-8"
     >
       <div className="mb-6 flex flex-col items-center gap-3 text-center">
-        <div className="flex size-12 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-primary">
+        <div className="flex size-12 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-primary shadow-[0_0_24px_rgba(232,192,105,0.25)]">
           <Rocket className="size-6" />
         </div>
         <div>
-          <div className="font-display text-3xl">ToTheMoon</div>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+          <div className="font-display text-2xl font-semibold tracking-tight">ToTheMoon</div>
+          <div className="mt-1 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
             Build wealth. Go further.
           </div>
         </div>
@@ -60,7 +60,7 @@ export function SignInCard() {
             value={password} onChange={(e) => setPassword(e.target.value)}
           />
         </div>
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <p className="text-sm text-negative">{error}</p>}
         <Button type="submit" disabled={pending || password === ""}>
           {pending ? "Signing in…" : "Sign in"}
         </Button>

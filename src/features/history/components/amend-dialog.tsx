@@ -114,7 +114,7 @@ export function AmendDialog(props: { snapshot: Snapshot; open: boolean; onOpenCh
           ))}
         </div>
 
-        {amend.isError && <p className="text-sm text-destructive">{amend.error.message}</p>}
+        {amend.isError && <p className="text-sm text-negative">{amend.error.message}</p>}
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => props.onOpenChange(false)}>Cancel</Button>
           <Button disabled={!canSave}
