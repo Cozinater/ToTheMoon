@@ -10,13 +10,13 @@ variable "app_password" {
 }
 
 variable "session_token" {
-  description = "Opaque session-cookie value; generate with: openssl rand -base64 32 | tr '+/' '-_'"
+  description = "Opaque session-cookie value; generate with: openssl rand -base64 32 | tr '+/' '-_' | tr -d '='"
   type        = string
   sensitive   = true
 
   validation {
-    condition     = can(regex("^[A-Za-z0-9=_-]+$", var.session_token))
-    error_message = "session_token must contain only A-Z, a-z, 0-9, '-', '_' or '=' (no quotes/backslashes — they would break the CloudFront Function template)."
+    condition     = can(regex("^[A-Za-z0-9_-]+$", var.session_token))
+    error_message = "session_token must contain only A-Z, a-z, 0-9, '-' or '_'. No '=' or other chars: Hono percent-encodes them in the Set-Cookie value, which then fails the literal match in the CloudFront Function (edge 401)."
   }
 }
 

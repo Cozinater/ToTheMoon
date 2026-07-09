@@ -1,5 +1,5 @@
 app_password        = "pick-a-long-password"
-# generate with: openssl rand -base64 32 | tr '+/' '-_'
+# generate with: openssl rand -base64 32 | tr '+/' '-_' | tr -d '='
 session_token       = "generate-a-long-random-token"
 origin_secret       = "generate-a-long-random-string"
 twelve_data_api_key = "your-twelve-data-key"
