@@ -45,6 +45,10 @@ resource "aws_lambda_function" "api" {
   timeout          = 15
   memory_size      = 256
 
+  # Hard cap on simultaneous instances: bounds Lambda cost/blast radius under a
+  # request flood (e.g. /api/login, which is edge-exempt). Excess → throttled 429.
+  reserved_concurrent_executions = 10
+
   environment {
     variables = {
       TABLE_NAME          = aws_dynamodb_table.main.name

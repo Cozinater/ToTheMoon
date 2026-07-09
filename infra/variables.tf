@@ -30,3 +30,13 @@ variable "twelve_data_api_key" {
   type      = string
   sensitive = true
 }
+
+variable "budget_alert_email" {
+  description = "Email that receives AWS spend alerts for this app"
+  type        = string
+
+  validation {
+    condition     = can(regex("^[^@ ]+@[^@ ]+\\.[^@ ]+$", var.budget_alert_email))
+    error_message = "budget_alert_email must be a valid email address."
+  }
+}
