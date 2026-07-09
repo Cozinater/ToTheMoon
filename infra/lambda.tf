@@ -45,9 +45,10 @@ resource "aws_lambda_function" "api" {
   timeout          = 15
   memory_size      = 256
 
-  # Hard cap on simultaneous instances: bounds Lambda cost/blast radius under a
-  # request flood (e.g. /api/login, which is edge-exempt). Excess → throttled 429.
-  reserved_concurrent_executions = 10
+  # Note: no reserved_concurrent_executions. This account's total Lambda
+  # concurrency limit (10 by default on new accounts) already caps the blast
+  # radius, and AWS forbids reserving concurrency when it would leave < 10
+  # unreserved. Re-add a reservation here once AWS raises the account limit.
 
   environment {
     variables = {
