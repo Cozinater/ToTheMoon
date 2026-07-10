@@ -18,3 +18,7 @@ output "nameservers" {
   description = "Set these four as Custom DNS nameservers at Namecheap"
   value       = aws_route53_zone.main.name_servers
 }
+
+output "app_url" {
+  value = "https://${var.app_domain}"
+}
