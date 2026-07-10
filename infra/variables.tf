@@ -40,3 +40,15 @@ variable "budget_alert_email" {
     error_message = "budget_alert_email must be a valid email address."
   }
 }
+
+variable "root_domain" {
+  description = "Registered domain whose DNS is hosted in Route 53"
+  type        = string
+  default     = "cozinater.com"
+}
+
+variable "app_domain" {
+  description = "Fully-qualified hostname the app is served on"
+  type        = string
+  default     = "networth.cozinater.com"
+}

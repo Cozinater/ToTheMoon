@@ -13,3 +13,8 @@ output "distribution_id" {
 output "table_name" {
   value = aws_dynamodb_table.main.name
 }
+
+output "nameservers" {
+  description = "Set these four as Custom DNS nameservers at Namecheap"
+  value       = aws_route53_zone.main.name_servers
+}
