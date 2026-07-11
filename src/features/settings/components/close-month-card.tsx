@@ -3,6 +3,7 @@ import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/date-picker";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -89,7 +90,7 @@ export function CloseMonthCard() {
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="close-date">Snapshot date</Label>
-          <Input id="close-date" type="date" value={snapshotDate} onChange={(e) => setSnapshotDate(e.target.value)} />
+          <DatePicker id="close-date" value={snapshotDate} onChange={setSnapshotDate} />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="close-fx">USD/SGD rate</Label>

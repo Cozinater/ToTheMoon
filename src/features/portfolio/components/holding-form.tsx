@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/date-picker";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -133,7 +134,7 @@ export function HoldingForm(props: {
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="asOf">As-of date</Label>
-            <Input id="asOf" type="date" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
+            <DatePicker id="asOf" value={asOf} onChange={setAsOf} />
           </div>
         </div>
 

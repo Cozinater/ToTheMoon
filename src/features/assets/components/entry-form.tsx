@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/date-picker";
 import { ResponsiveModal } from "@/components/responsive-modal";
 import type { Entry } from "@shared/schema";
 import { round2 } from "@shared/totals";
@@ -47,7 +48,7 @@ export function EntryForm(props: {
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="entry-asof">As-of date</Label>
-            <Input id="entry-asof" type="date" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
+            <DatePicker id="entry-asof" value={asOf} onChange={setAsOf} />
           </div>
         </div>
         <div className="flex justify-end gap-2">

@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/date-picker";
 import { ResponsiveModal } from "@/components/responsive-modal";
 import { useAmendSnapshot } from "@/hooks/use-snapshots";
 import { monthLabel } from "@/lib/format";
@@ -73,8 +74,8 @@ export function AmendDialog(props: { snapshot: Snapshot; open: boolean; onOpenCh
         <div className="grid grid-cols-2 gap-3">
           <div className="grid gap-1.5">
             <Label htmlFor="amend-date">Snapshot date</Label>
-            <Input id="amend-date" type="date" value={doc.snapshotDate}
-              onChange={(e) => setDoc((d) => ({ ...d, snapshotDate: e.target.value }))} />
+            <DatePicker id="amend-date" value={doc.snapshotDate}
+              onChange={(v) => setDoc((d) => ({ ...d, snapshotDate: v }))} />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="amend-fx">USD/SGD rate</Label>
