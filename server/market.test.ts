@@ -125,3 +125,34 @@ describe("crypto search (CoinGecko)", () => {
     expect(await cgSearch("weird")).toEqual([]);
   });
 });
+
+describe("search", () => {
+  it("merges equities and crypto, exact symbol matches first", async () => {
+    stubFetch({
+      "/symbol_search?symbol=UNI": { status: "ok", data: [
+        { symbol: "UNIT", instrument_name: "Uniti Group", instrument_type: "Common Stock", exchange: "NASDAQ", currency: "USD" },
+        { symbol: "UNI", instrument_name: "Universal Corp", instrument_type: "Common Stock", exchange: "NYSE", currency: "USD" },
+      ] },
+      "/search?query=UNI": { coins: [{ id: "uniswap", symbol: "uni", name: "Uniswap" }] },
+    });
+    const results = await client().search("UNI");
+    expect(results.map((r) => `${r.symbol}:${r.type}`)).toEqual(
+      ["UNI:stock", "UNI:crypto", "UNIT:stock"]);
+  });
+
+  it("returns partial results when one source fails", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string | URL) => {
+      const u = String(url);
+      if (u.includes("/symbol_search")) throw new Error("network down");
+      if (u.includes("/search?query=BTC")) return json({ coins: [{ id: "bitcoin", symbol: "btc", name: "Bitcoin" }] });
+      throw new Error(`unexpected fetch: ${u}`);
+    }));
+    expect(await client().search("BTC")).toEqual(
+      [{ symbol: "BTC", name: "Bitcoin", type: "crypto", currency: "USD" }]);
+  });
+
+  it("throws UPSTREAM when both sources fail", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("network down"); }));
+    await expect(client().search("BTC")).rejects.toMatchObject({ code: "UPSTREAM" });
+  });
+});

@@ -14,6 +14,7 @@ const stubMarket = (over: Partial<MarketClient> = {}): MarketClient => ({
     failed: [],
   })),
   fx: vi.fn(async () => ({ pair: "USD/SGD" as const, rate: 1.3, asOf: "2026-07-01" })),
+  search: vi.fn(async () => []),
   ...over,
 });
 
