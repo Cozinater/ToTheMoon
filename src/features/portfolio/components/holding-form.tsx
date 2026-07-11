@@ -63,6 +63,7 @@ export function HoldingForm(props: {
         api<FxResponse>("/api/fx"),
       ]);
       setQuote({ status: "ok", quote: q, fxRate: fx.rate });
+      setAsOf(q.asOf); // keep the holding's as-of consistent with the fetched EOD price
     } catch (err) {
       setQuote({
         status: "error",
