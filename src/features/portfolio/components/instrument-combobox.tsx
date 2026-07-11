@@ -16,7 +16,9 @@ const rowEnabled = (row: Row) => row.kind !== "result" || !row.disabled;
 export function InstrumentCombobox(props: {
   selected: SearchResult | null;
   onSelect: (r: SearchResult | null) => void;
+  onOpenChange?: (open: boolean) => void;
 }) {
+  const { onOpenChange } = props;
   const listId = useId();
   const [query, setQuery] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
@@ -44,9 +46,10 @@ export function InstrumentCombobox(props: {
       setRows(next);
       setActive(Math.max(0, next.findIndex(rowEnabled)));
       setOpen(true);
+      onOpenChange?.(true);
     }, 300);
     return () => clearTimeout(t);
-  }, [q, eligible]);
+  }, [q, eligible, onOpenChange]);
 
   function choose(row: Row) {
     if (!rowEnabled(row)) return;
@@ -54,6 +57,7 @@ export function InstrumentCombobox(props: {
       ? row.result
       : { symbol: q.toUpperCase(), name: "Manual entry", type: row.type, currency: "USD" });
     setOpen(false);
+    onOpenChange?.(false);
     setRows([]);
   }
 
@@ -68,7 +72,7 @@ export function InstrumentCombobox(props: {
     if (e.key === "ArrowDown") { e.preventDefault(); move(1); }
     else if (e.key === "ArrowUp") { e.preventDefault(); move(-1); }
     else if (e.key === "Enter" && open && rows[active]) { e.preventDefault(); choose(rows[active]!); }
-    else if (e.key === "Escape" && open) { e.stopPropagation(); setOpen(false); }
+    else if (e.key === "Escape" && open) { setOpen(false); onOpenChange?.(false); }
   }
 
   const showList = open && eligible && rows.length > 0;
@@ -82,7 +86,7 @@ export function InstrumentCombobox(props: {
           value={props.selected ? props.selected.symbol : query}
           onChange={(e) => { props.onSelect(null); setQuery(e.target.value); }}
           onKeyDown={onKeyDown}
-          onBlur={() => setOpen(false)}
+          onBlur={() => { setOpen(false); onOpenChange?.(false); }}
           className={props.selected ? "pr-16" : undefined}
         />
         {props.selected && (

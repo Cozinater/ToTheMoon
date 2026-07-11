@@ -30,6 +30,7 @@ export function HoldingForm(props: {
   const [quantityStr, setQuantityStr] = useState("");
   const [asOf, setAsOf] = useState("");
   const [quote, setQuote] = useState<QuoteState>({ status: "idle" });
+  const [listOpen, setListOpen] = useState(false);
 
   useEffect(() => {
     if (!props.open) return;
@@ -77,8 +78,8 @@ export function HoldingForm(props: {
 
   const quantity = Number(quantityStr);
   const canSave =
-    selected !== null && quote.status === "ok" && asOf !== "" &&
-    Number.isFinite(quantity) && quantity > 0;
+    selected !== null && quote.status === "ok" && quote.quote.symbol === selected.symbol &&
+    asOf !== "" && Number.isFinite(quantity) && quantity > 0;
 
   function save() {
     if (!selected || quote.status !== "ok" || !canSave) return;
@@ -101,13 +102,14 @@ export function HoldingForm(props: {
     <ResponsiveModal
       open={props.open}
       onOpenChange={props.onOpenChange}
+      onEscapeKeyDown={(e) => { if (listOpen) e.preventDefault(); }}
       title={props.initial ? `Edit ${props.initial.ticker}` : "Add holding"}
       description="Pick an instrument and we'll fetch its end-of-day USD price."
     >
       <div className="grid gap-4">
         <div className="grid gap-1.5">
           <Label htmlFor="instrument">Instrument</Label>
-          <InstrumentCombobox selected={selected} onSelect={handleSelect} />
+          <InstrumentCombobox selected={selected} onSelect={handleSelect} onOpenChange={setListOpen} />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
