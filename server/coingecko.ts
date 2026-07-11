@@ -39,6 +39,6 @@ export type CryptoSearchHit = { symbol: string; name: string };
 
 export async function cgSearch(q: string): Promise<CryptoSearchHit[]> {
   const body = await get(`/search?query=${encodeURIComponent(q)}`) as
-    { coins: { symbol: string; name: string }[] };
-  return body.coins.slice(0, 8).map((c) => ({ symbol: c.symbol.toUpperCase(), name: c.name }));
+    { coins?: { symbol: string; name: string }[] };
+  return (body.coins ?? []).slice(0, 8).map((c) => ({ symbol: c.symbol.toUpperCase(), name: c.name }));
 }

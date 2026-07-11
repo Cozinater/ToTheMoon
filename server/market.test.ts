@@ -113,4 +113,15 @@ describe("crypto search (CoinGecko)", () => {
       { symbol: "BCH", name: "Bitcoin Cash" },
     ]);
   });
+
+  it("caps results at 8", async () => {
+    stubFetch({ "/search?query=co": { coins: Array.from({ length: 12 }, (_, i) => (
+      { id: `coin-${i}`, symbol: `co${i}`, name: `Coin ${i}` })) } });
+    expect(await cgSearch("co")).toHaveLength(8);
+  });
+
+  it("returns [] when the payload has no coins array", async () => {
+    stubFetch({ "/search?query=weird": {} });
+    expect(await cgSearch("weird")).toEqual([]);
+  });
 });
