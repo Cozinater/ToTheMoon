@@ -153,6 +153,9 @@ describe("search", () => {
 
   it("throws UPSTREAM when both sources fail", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("network down"); }));
-    await expect(client().search("BTC")).rejects.toMatchObject({ code: "UPSTREAM" });
+    await expect(client().search("BTC")).rejects.toMatchObject({
+      code: "UPSTREAM",
+      message: "Search unavailable — try again",
+    });
   });
 });
