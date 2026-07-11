@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MarketError, createMarketClient } from "./market.ts";
+import { tdSymbolSearch } from "./twelve-data.ts";
 
 const json = (body: unknown) => new Response(JSON.stringify(body), {
   status: 200, headers: { "content-type": "application/json" },
@@ -77,5 +78,25 @@ describe("quoteBatch", () => {
     ]);
     expect(quotes.map((q) => q.symbol).sort()).toEqual(["BTC", "VOO"]);
     expect(failed).toEqual(["XXX"]);
+  });
+});
+
+describe("symbol search (Twelve Data)", () => {
+  it("maps instrument types and keeps non-USD currency", async () => {
+    stubFetch({
+      "/symbol_search?symbol=VO": { status: "ok", data: [
+        { symbol: "VOO", instrument_name: "Vanguard S&P 500 ETF", instrument_type: "ETF", exchange: "NYSE", currency: "USD" },
+        { symbol: "VOD", instrument_name: "Vodafone Group Plc", instrument_type: "Common Stock", exchange: "LSE", currency: "GBp" },
+      ] },
+    });
+    expect(await tdSymbolSearch("test-key", "VO")).toEqual([
+      { symbol: "VOO", name: "Vanguard S&P 500 ETF", type: "etf", exchange: "NYSE", currency: "USD" },
+      { symbol: "VOD", name: "Vodafone Group Plc", type: "stock", exchange: "LSE", currency: "GBp" },
+    ]);
+  });
+
+  it("returns [] when the payload has no data array", async () => {
+    stubFetch({ "/symbol_search?symbol=ZZZZ": { status: "ok" } });
+    expect(await tdSymbolSearch("test-key", "ZZZZ")).toEqual([]);
   });
 });
