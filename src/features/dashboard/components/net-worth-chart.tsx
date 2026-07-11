@@ -51,7 +51,7 @@ function ChartTooltip(props: { active?: boolean; label?: string; payload?: Toolt
 function RangePills({ range, onChange }: { range: ChartRange; onChange: (r: ChartRange) => void }) {
   const pill = (active: boolean) =>
     cn(
-      "rounded-lg px-2 py-1 text-xs font-semibold transition-colors",
+      "rounded-lg px-2 py-1 text-xs font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
       active
         ? "bg-secondary text-secondary-foreground"
         : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
@@ -60,11 +60,13 @@ function RangePills({ range, onChange }: { range: ChartRange; onChange: (r: Char
     <div className="flex items-center gap-1">
       {PRESETS.map((p) => (
         <button key={p.preset} type="button" onClick={() => onChange({ preset: p.preset })}
+          aria-pressed={"preset" in range && range.preset === p.preset}
           className={pill("preset" in range && range.preset === p.preset)}>
           {p.label}
         </button>
       ))}
-      <button type="button" onClick={() => onChange({})} className={pill(!("preset" in range))}>
+      <button type="button" onClick={() => { if ("preset" in range) onChange({}); }}
+        aria-pressed={!("preset" in range)} className={pill(!("preset" in range))}>
         Custom
       </button>
     </div>
