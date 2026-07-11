@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MarketError, createMarketClient } from "./market.ts";
 import { tdSymbolSearch } from "./twelve-data.ts";
+import { cgSearch } from "./coingecko.ts";
 
 const json = (body: unknown) => new Response(JSON.stringify(body), {
   status: 200, headers: { "content-type": "application/json" },
@@ -98,5 +99,18 @@ describe("symbol search (Twelve Data)", () => {
   it("returns [] when the payload has no data array", async () => {
     stubFetch({ "/symbol_search?symbol=ZZZZ": { status: "ok" } });
     expect(await tdSymbolSearch("test-key", "ZZZZ")).toEqual([]);
+  });
+});
+
+describe("crypto search (CoinGecko)", () => {
+  it("maps coins to upper-case symbol and name", async () => {
+    stubFetch({ "/search?query=bitc": { coins: [
+      { id: "bitcoin", symbol: "btc", name: "Bitcoin" },
+      { id: "bitcoin-cash", symbol: "bch", name: "Bitcoin Cash" },
+    ] } });
+    expect(await cgSearch("bitc")).toEqual([
+      { symbol: "BTC", name: "Bitcoin" },
+      { symbol: "BCH", name: "Bitcoin Cash" },
+    ]);
   });
 });
