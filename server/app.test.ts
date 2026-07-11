@@ -14,6 +14,7 @@ const stubMarket = (over: Partial<MarketClient> = {}): MarketClient => ({
     failed: [],
   })),
   fx: vi.fn(async () => ({ pair: "USD/SGD" as const, rate: 1.3, asOf: "2026-07-01" })),
+  search: vi.fn(async () => []),
   ...over,
 });
 
@@ -232,5 +233,28 @@ describe("session auth", () => {
     expect((await json(login)).ok).toBe(true);
     expect(login.headers.get("set-cookie")).toBeNull();
     expect((await app.request("/api/draft")).status).toBe(200);
+  });
+});
+
+describe("search", () => {
+  it("returns results from the market client", async () => {
+    const results = [{ symbol: "MSFT", name: "Microsoft Corporation", type: "stock" as const,
+      exchange: "NASDAQ", currency: "USD" }];
+    const app = makeApp({ search: vi.fn(async () => results) });
+    const res = await app.request("/api/search?q=msft");
+    expect(res.status).toBe(200);
+    expect(await json(res)).toEqual({ results });
+  });
+
+  it("rejects a missing or oversized q with VALIDATION", async () => {
+    expect((await makeApp().request("/api/search")).status).toBe(400);
+    expect((await makeApp().request(`/api/search?q=${"A".repeat(25)}`)).status).toBe(400);
+  });
+
+  it("maps upstream failure to 502", async () => {
+    const app = makeApp({
+      search: vi.fn(async () => { throw new MarketError("UPSTREAM", "Search unavailable — try again"); }),
+    });
+    expect((await app.request("/api/search?q=btc")).status).toBe(502);
   });
 });

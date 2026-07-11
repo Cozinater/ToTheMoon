@@ -47,3 +47,26 @@ export async function tdFx(key: string): Promise<Fx> {
   }
   return { pair: "USD/SGD", rate: body.rate, asOf: new Date(body.timestamp * 1000).toISOString().slice(0, 10) };
 }
+
+export type EquitySearchHit = {
+  symbol: string; name: string; type: "stock" | "etf"; exchange: string; currency: string;
+};
+
+type SymbolSearchPayload = {
+  data?: { symbol?: string; instrument_name?: string; instrument_type?: string;
+    exchange?: string; currency?: string }[];
+};
+
+/** symbol_search is a credit-free utility endpoint on the free tier. */
+export async function tdSymbolSearch(key: string, q: string): Promise<EquitySearchHit[]> {
+  const body = await get("/symbol_search", { symbol: q, outputsize: "8" }, key) as SymbolSearchPayload;
+  return (body.data ?? [])
+    .filter((d) => d.symbol && d.instrument_name)
+    .map((d) => ({
+      symbol: d.symbol!.toUpperCase(),
+      name: d.instrument_name!,
+      type: d.instrument_type === "ETF" ? "etf" as const : "stock" as const,
+      exchange: d.exchange ?? "",
+      currency: d.currency ?? "USD",
+    }));
+}
