@@ -3,16 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/date-picker";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ResponsiveModal } from "@/components/responsive-modal";
 import { api, ApiError } from "@/lib/api";
 import { dateLabel, usd } from "@/lib/format";
 import { round2 } from "@shared/totals";
 import type { AssetType, Holding } from "@shared/schema";
-import type { FxResponse, Quote } from "../types";
+import { InstrumentCombobox } from "./instrument-combobox";
+import type { FxResponse, Quote, SearchResult } from "../types";
 
 type QuoteState =
   | { status: "idle" }
@@ -20,22 +18,24 @@ type QuoteState =
   | { status: "ok"; quote: Quote; fxRate?: number }
   | { status: "error"; message: string };
 
+const fromHolding = (h: Holding): SearchResult =>
+  ({ symbol: h.ticker, name: h.ticker, type: h.type, currency: "USD" });
+
 export function HoldingForm(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initial?: Holding;
   onSave: (holding: Holding, fxRate?: number) => void;
 }) {
-  const [ticker, setTicker] = useState("");
-  const [type, setType] = useState<AssetType>("stock");
+  const [selected, setSelected] = useState<SearchResult | null>(null);
   const [quantityStr, setQuantityStr] = useState("");
   const [asOf, setAsOf] = useState("");
   const [quote, setQuote] = useState<QuoteState>({ status: "idle" });
+  const [listOpen, setListOpen] = useState(false);
 
   useEffect(() => {
     if (!props.open) return;
-    setTicker(props.initial?.ticker ?? "");
-    setType(props.initial?.type ?? "stock");
+    setSelected(props.initial ? fromHolding(props.initial) : null);
     setQuantityStr(props.initial ? String(props.initial.quantity) : "");
     setAsOf(props.initial?.asOf ?? "");
     if (props.initial) {
@@ -54,9 +54,7 @@ export function HoldingForm(props: {
     }
   }, [props.open, props.initial]);
 
-  async function fetchQuote() {
-    const symbol = ticker.trim();
-    if (!symbol || quote.status === "loading") return;
+  async function fetchQuote(symbol: string, type: AssetType) {
     setQuote({ status: "loading" });
     try {
       const [q, fx] = await Promise.all([
@@ -73,16 +71,24 @@ export function HoldingForm(props: {
     }
   }
 
+  function handleSelect(r: SearchResult | null) {
+    setSelected(r);
+    if (r) void fetchQuote(r.symbol, r.type);
+    else setQuote({ status: "idle" });
+  }
+
   const quantity = Number(quantityStr);
-  const canSave = quote.status === "ok" && asOf !== "" && Number.isFinite(quantity) && quantity > 0;
+  const canSave =
+    selected !== null && quote.status === "ok" && quote.quote.symbol === selected.symbol &&
+    asOf !== "" && Number.isFinite(quantity) && quantity > 0;
 
   function save() {
-    if (quote.status !== "ok" || !canSave) return;
+    if (!selected || quote.status !== "ok" || !canSave) return;
     props.onSave(
       {
         id: props.initial?.id ?? crypto.randomUUID(),
         ticker: quote.quote.symbol,
-        type,
+        type: selected.type,
         quantity,
         priceUsd: quote.quote.priceUsd,
         valueUsd: round2(quantity * quote.quote.priceUsd),
@@ -97,31 +103,14 @@ export function HoldingForm(props: {
     <ResponsiveModal
       open={props.open}
       onOpenChange={props.onOpenChange}
+      onEscapeKeyDown={(e) => { if (listOpen) e.preventDefault(); }}
       title={props.initial ? `Edit ${props.initial.ticker}` : "Add holding"}
-      description="Prices are fetched end-of-day in USD."
+      description="Pick an instrument and we'll fetch its end-of-day USD price."
     >
       <div className="grid gap-4">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="grid gap-1.5">
-            <Label htmlFor="ticker">Ticker</Label>
-            <Input
-              id="ticker" autoCapitalize="characters" placeholder="VOO"
-              value={ticker}
-              onChange={(e) => { setTicker(e.target.value.toUpperCase()); setQuote({ status: "idle" }); }}
-              onBlur={fetchQuote}
-            />
-          </div>
-          <div className="grid gap-1.5">
-            <Label>Type</Label>
-            <Select value={type} onValueChange={(v) => { setType(v as AssetType); setQuote({ status: "idle" }); }}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="stock">Stock</SelectItem>
-                <SelectItem value="etf">ETF</SelectItem>
-                <SelectItem value="crypto">Crypto</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="instrument">Instrument</Label>
+          <InstrumentCombobox selected={selected} onSelect={handleSelect} onOpenChange={setListOpen} />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -139,7 +128,7 @@ export function HoldingForm(props: {
         </div>
 
         <div className="rounded-xl border border-border/60 bg-muted/40 px-4 py-3 text-sm">
-          {quote.status === "idle" && <span className="text-muted-foreground">Enter a ticker to fetch its end-of-day price.</span>}
+          {quote.status === "idle" && <span className="text-muted-foreground">Search for an instrument to fetch its end-of-day price.</span>}
           {quote.status === "loading" && <Skeleton className="h-5 w-40" />}
           {quote.status === "ok" && (
             <span>
@@ -155,9 +144,6 @@ export function HoldingForm(props: {
 
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => props.onOpenChange(false)}>Cancel</Button>
-          {(quote.status === "error" || quote.status === "idle" || quote.status === "ok") ? (
-            <Button variant="outline" onClick={fetchQuote} disabled={!ticker.trim()}>Fetch price</Button>
-          ) : null}
           <Button onClick={save} disabled={!canSave}>Save holding</Button>
         </div>
       </div>

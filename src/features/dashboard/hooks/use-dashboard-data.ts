@@ -5,14 +5,15 @@ import type { Totals } from "@shared/schema";
 import { computeTotals } from "@shared/totals";
 
 export type ChartPoint = {
+  month: string | null;                    // snapshot "YYYY-MM"; null for the live "Now" point
   label: string;
   portfolio: number; savings: number; cpf: number; property: number;
   creditCards: number; loans: number;      // stored negative for the chart
   netWorth: number;
 };
 
-const toPoint = (label: string, t: Totals): ChartPoint => ({
-  label,
+const toPoint = (month: string | null, label: string, t: Totals): ChartPoint => ({
+  month, label,
   portfolio: t.portfolioSgd, savings: t.savingsSgd, cpf: t.cpfSgd, property: t.propertySgd,
   creditCards: -t.creditCardsSgd, loans: -t.loansSgd,
   netWorth: t.netWorthSgd,
@@ -29,8 +30,8 @@ export function useDashboardData() {
 
   const points: ChartPoint[] = [...(snapshots.data ?? [])]
     .reverse()
-    .map((s) => toPoint(monthLabel(s.month), s.totals));
-  if (totals) points.push(toPoint("Now", totals));
+    .map((s) => toPoint(s.month, monthLabel(s.month), s.totals));
+  if (totals) points.push(toPoint(null, "Now", totals));
 
   const delta = totals && latest
     ? {

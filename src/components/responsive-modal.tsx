@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 export function ResponsiveModal(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onEscapeKeyDown?: (e: KeyboardEvent) => void;
   title: string;
   description?: string;
   wide?: boolean;
@@ -15,7 +16,10 @@ export function ResponsiveModal(props: {
   if (isDesktop) {
     return (
       <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-        <DialogContent className={props.wide ? "max-h-[85vh] overflow-y-auto sm:max-w-3xl" : "sm:max-w-md"}>
+        <DialogContent
+          className={props.wide ? "max-h-[85vh] overflow-y-auto sm:max-w-3xl" : "sm:max-w-md"}
+          onEscapeKeyDown={props.onEscapeKeyDown}
+        >
           <DialogHeader>
             <DialogTitle>{props.title}</DialogTitle>
             {props.description && <DialogDescription>{props.description}</DialogDescription>}
@@ -27,7 +31,7 @@ export function ResponsiveModal(props: {
   }
   return (
     <Drawer open={props.open} onOpenChange={props.onOpenChange}>
-      <DrawerContent className="max-h-[92vh]">
+      <DrawerContent className="max-h-[92vh]" onEscapeKeyDown={props.onEscapeKeyDown}>
         <DrawerHeader className="text-left">
           <DrawerTitle>{props.title}</DrawerTitle>
           {props.description && <DrawerDescription>{props.description}</DrawerDescription>}

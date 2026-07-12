@@ -1,5 +1,6 @@
 import { Hono, type Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
+import { z } from "zod";
 import {
   amendInputSchema, assetTypeSchema, closeInputSchema, draftInputSchema,
   emptyDraft, type AssetType, type Snapshot,
@@ -129,6 +130,14 @@ export function createApp({ store, market, originSecret, auth }: AppDeps) {
     };
     await store.putSnapshot(snapshot);
     return c.json(snapshot);
+  });
+
+  const searchQuerySchema = z.string().trim().min(1).max(24);
+
+  api.get("/search", async (c) => {
+    const parsed = searchQuerySchema.safeParse(c.req.query("q") ?? "");
+    if (!parsed.success) return invalid(c, parsed.error.issues);
+    return c.json({ results: await market.search(parsed.data) });
   });
 
   api.get("/quote", async (c) => {

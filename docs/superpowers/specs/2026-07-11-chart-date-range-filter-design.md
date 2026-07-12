@@ -61,8 +61,11 @@ local timezone).
 
 - Presets are calendar windows ending at the present, so "6M" means the 6
   calendar months up to and including the current month.
-- Custom bounds are inclusive. `start > end` yields an empty window and
-  shows the empty-range message (inputs are not swapped or clamped).
+- Custom bounds are inclusive. `start > end` matches no snapshots (inputs
+  are not swapped or clamped). Per the table, the Now point is gated only
+  by `end`, so it still renders when `end` is empty or ≥ the current
+  month; the empty-range message appears only when the Now point is
+  excluded too.
 - The Now point only renders when there is a draft (unchanged); the rules
   above additionally gate it by range.
 
