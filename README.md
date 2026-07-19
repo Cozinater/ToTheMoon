@@ -72,6 +72,36 @@ src/
 - `infra/terraform.tfvars` (deploy): copy `infra/terraform.tfvars.example` — basic-auth
   credentials, a long random `origin_secret`, and the Twelve Data key. Both files are gitignored.
 
+## CI/CD pipeline
+
+Two separate flows. **CI** (GitHub Actions) checks every change automatically;
+**deploying** ships to production and stays a manual, deliberate step.
+
+```mermaid
+flowchart TB
+    subgraph ci ["CI — automated on every push and PR (GitHub Actions)"]
+        A["you: git push"] --> B["GitHub reads .github/workflows/ci.yml"]
+        B --> C["fresh Linux runner spins up"]
+        C --> D["npm ci → tsc -b → npm test"]
+        D --> E{"checks pass?"}
+        E -->|yes| F["commit gets a green check"]
+        E -->|no| G["red X — GitHub emails the failure"]
+    end
+
+    subgraph cd ["Deploy — manual: ./scripts/deploy.sh"]
+        H["npm run build + npm run build:lambda"] --> I["terraform apply"]
+        I --> J["aws s3 sync dist/ → S3"]
+        J --> K["CloudFront invalidation"]
+        K --> L["live at networth.cozinater.com"]
+    end
+
+    F -. "deploy from main, only when green" .-> H
+```
+
+CI answers "did this change break anything?" on a clean machine, so nothing
+depends on what happens to be installed locally. Deploys are gated on a green
+main but always triggered by you.
+
 ## Deploying
 
 One-time: `terraform -chdir=infra init`, AWS credentials configured (`aws configure`), and
