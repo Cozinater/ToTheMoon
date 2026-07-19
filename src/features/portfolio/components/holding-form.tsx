@@ -6,7 +6,7 @@ import { DatePicker } from "@/components/date-picker";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ResponsiveModal } from "@/components/responsive-modal";
 import { api, ApiError } from "@/lib/api";
-import { dateLabel, usd } from "@/lib/format";
+import { qty, usd } from "@/lib/format";
 import { round2 } from "@shared/totals";
 import type { AssetType, Holding } from "@shared/schema";
 import { InstrumentCombobox } from "./instrument-combobox";
@@ -131,13 +131,15 @@ export function HoldingForm(props: {
           {quote.status === "idle" && <span className="text-muted-foreground">Search for an instrument to fetch its end-of-day price.</span>}
           {quote.status === "loading" && <Skeleton className="h-5 w-40" />}
           {quote.status === "ok" && (
-            <span>
-              {usd(quote.quote.priceUsd)}
-              <span className="text-muted-foreground">
-                {" · EOD "}{dateLabel(quote.quote.asOf)}
-                {quote.fxRate !== undefined ? ` · USD/SGD ${quote.fxRate}` : ""}
+            Number.isFinite(quantity) && quantity > 0 ? (
+              <span>
+                {usd(quote.quote.priceUsd)}
+                <span className="text-muted-foreground">{" × "}{qty(quantity)}{" = "}</span>
+                <span className="font-medium">{usd(round2(quantity * quote.quote.priceUsd))}</span>
               </span>
-            </span>
+            ) : (
+              <span>{usd(quote.quote.priceUsd)}</span>
+            )
           )}
           {quote.status === "error" && <span className="text-negative">{quote.message}</span>}
         </div>
