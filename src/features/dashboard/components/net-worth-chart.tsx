@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Input } from "@/components/ui/input";
+import { MonthPicker } from "@/components/month-picker";
 import { compactSgd, sgd } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ChartPoint } from "../hooks/use-dashboard-data";
@@ -81,13 +81,19 @@ function CustomRangeInputs(props: {
     <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
       <label className="flex items-center gap-2">
         From
-        <Input type="month" className="h-8 w-40 scheme-dark" value={props.range.start ?? ""}
-          onChange={(e) => props.onChange({ ...props.range, start: e.target.value || undefined })} />
+        <MonthPicker
+          className="h-8 w-40"
+          value={props.range.start ?? ""}
+          onChange={(v) => props.onChange({ ...props.range, start: v || undefined })}
+        />
       </label>
       <label className="flex items-center gap-2">
         To
-        <Input type="month" className="h-8 w-40 scheme-dark" value={props.range.end ?? ""}
-          onChange={(e) => props.onChange({ ...props.range, end: e.target.value || undefined })} />
+        <MonthPicker
+          className="h-8 w-40"
+          value={props.range.end ?? ""}
+          onChange={(v) => props.onChange({ ...props.range, end: v || undefined })}
+        />
       </label>
     </div>
   );
