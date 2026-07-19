@@ -132,57 +132,60 @@ export function HoldingsTable(props: {
           />
         </div>
       )}
-      <table className="w-full text-sm">
-        <thead>
-          {table.getHeaderGroups().map((hg) => (
-            <tr key={hg.id} className="text-left text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-              {hg.headers.map((header) => (
-                <th key={header.id} className={`${CELL_CLASS[header.column.id]} font-medium`}>
-                  {header.column.getCanSort() ? (
-                    <button
-                      className="inline-flex items-center gap-1"
-                      onClick={header.column.getToggleSortingHandler()}
-                    >
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                      <ArrowUpDown className="size-3" />
-                    </button>
-                  ) : (
-                    flexRender(header.column.columnDef.header, header.getContext())
-                  )}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody>
-          <AnimatePresence initial={false}>
-            {rows.length === 0 && props.holdings.length > 0 && (
-              <tr>
-                <td colSpan={readOnly ? 6 : 7} className="px-4 py-6 text-center text-muted-foreground">
-                  No holdings match.
-                </td>
-              </tr>
-            )}
-            {rows.map((row) => (
-              <motion.tr
-                key={row.original.id}
-                layout
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-                className="border-t border-border/50"
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className={CELL_CLASS[cell.column.id]}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
+      {/* Horizontal scroll so narrow screens can reach clipped columns instead of losing them to the parent's overflow-hidden */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            {table.getHeaderGroups().map((hg) => (
+              <tr key={hg.id} className="text-left text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                {hg.headers.map((header) => (
+                  <th key={header.id} className={`${CELL_CLASS[header.column.id]} font-medium`}>
+                    {header.column.getCanSort() ? (
+                      <button
+                        className="inline-flex items-center gap-1"
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        <ArrowUpDown className="size-3" />
+                      </button>
+                    ) : (
+                      flexRender(header.column.columnDef.header, header.getContext())
+                    )}
+                  </th>
                 ))}
-              </motion.tr>
+              </tr>
             ))}
-          </AnimatePresence>
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            <AnimatePresence initial={false}>
+              {rows.length === 0 && props.holdings.length > 0 && (
+                <tr>
+                  <td colSpan={readOnly ? 6 : 7} className="px-4 py-6 text-center text-muted-foreground">
+                    No holdings match.
+                  </td>
+                </tr>
+              )}
+              {rows.map((row) => (
+                <motion.tr
+                  key={row.original.id}
+                  layout
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                  className="border-t border-border/50"
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id} className={CELL_CLASS[cell.column.id]}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </motion.tr>
+              ))}
+            </AnimatePresence>
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
