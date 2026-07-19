@@ -1,5 +1,7 @@
 # ToTheMoon
 
+![CI](https://github.com/Cozinater/ToTheMoon/actions/workflows/ci.yml/badge.svg)
+
 A React + TypeScript + Vite app.
 
 ## Tech stack
