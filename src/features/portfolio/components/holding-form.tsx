@@ -135,7 +135,7 @@ export function HoldingForm(props: {
           <div className="grid gap-1.5">
             <Label htmlFor="quantity">Quantity</Label>
             <Input
-              id="quantity" type="number" inputMode="decimal" min="0" step="any" placeholder="25"
+              id="quantity" type="number" inputMode="decimal" min="0" step="any" placeholder="0"
               value={quantityStr} onChange={(e) => setQuantityStr(e.target.value)}
             />
           </div>
