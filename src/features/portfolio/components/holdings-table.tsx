@@ -8,8 +8,10 @@ import { AnimatePresence, motion } from "motion/react";
 import { ArrowUpDown, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useSettings } from "@/hooks/use-settings";
 import type { AssetType, Holding } from "@shared/schema";
 import { pct, qty, usd } from "@/lib/format";
+import { StrategyBadge } from "./strategy-badge";
 
 const TYPE_TABS: { value: "all" | AssetType; label: string }[] = [
   { value: "all", label: "All" },
@@ -22,6 +24,7 @@ const TYPE_TABS: { value: "all" | AssetType; label: string }[] = [
 const CELL_CLASS: Record<string, string> = {
   ticker: "px-5 py-4",
   type: "hidden px-5 py-4 sm:table-cell",
+  strategy: "hidden px-5 py-4 sm:table-cell",
   quantity: "px-5 py-4 text-right",
   priceUsd: "hidden px-5 py-4 text-right sm:table-cell",
   valueUsd: "px-5 py-4 text-right",
@@ -41,6 +44,11 @@ export function HoldingsTable(props: {
   const readOnly = !props.onEdit && !props.onDelete;
   const total = props.holdings.reduce((acc, h) => acc + h.valueUsd, 0);
   const { onEdit, onDelete } = props;
+  const { data: settings } = useSettings();
+  const strategyIndex = useMemo(
+    () => new Map((settings?.strategies ?? []).map((s, i) => [s, i] as const)),
+    [settings],
+  );
 
   const columns = useMemo(() => {
     const col = createColumnHelper<Holding>();
@@ -53,6 +61,15 @@ export function HoldingsTable(props: {
         header: "Type",
         filterFn: "equals",
         cell: (c) => <span className="capitalize text-muted-foreground">{c.getValue()}</span>,
+      }),
+      col.accessor("strategy", {
+        header: "Strategy",
+        cell: (c) => {
+          const v = c.getValue();
+          return v
+            ? <StrategyBadge value={v} colorIndex={strategyIndex.get(v) ?? -1} />
+            : <span className="text-muted-foreground">—</span>;
+        },
       }),
       col.accessor("quantity", { header: "Qty", cell: (c) => qty(c.getValue()) }),
       col.accessor("priceUsd", { header: "Price (USD)", cell: (c) => usd(c.getValue()) }),
@@ -91,7 +108,7 @@ export function HoldingsTable(props: {
             }),
           ]),
     ];
-  }, [total, readOnly, onEdit, onDelete]);
+  }, [total, readOnly, onEdit, onDelete, strategyIndex]);
 
   const table = useReactTable({
     data: props.holdings,
@@ -160,7 +177,7 @@ export function HoldingsTable(props: {
             <AnimatePresence initial={false}>
               {rows.length === 0 && props.holdings.length > 0 && (
                 <tr>
-                  <td colSpan={readOnly ? 6 : 7} className="px-4 py-6 text-center text-muted-foreground">
+                  <td colSpan={readOnly ? 7 : 8} className="px-4 py-6 text-center text-muted-foreground">
                     No holdings match.
                   </td>
                 </tr>
