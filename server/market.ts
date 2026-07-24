@@ -1,9 +1,14 @@
 import type { AssetType } from "../shared/schema.ts";
 import { cgQuotes, cgSearch } from "./coingecko.ts";
-import { tdEodBatch, tdFx, tdSymbolSearch } from "./twelve-data.ts";
+import { tdFx, tdQuoteBatch, tdSymbolSearch } from "./twelve-data.ts";
 
 /** Max combined search results returned to the client (also the per-source fetch size). */
 export const SEARCH_LIMIT = 12;
+
+/** Today's date (UTC) as YYYY-MM-DD — the single as-of stamp shared by every quote provider. */
+export function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
 export type Quote = { symbol: string; type: AssetType; priceUsd: number; asOf: string };
 export type Fx = { pair: "USD/SGD"; rate: number; asOf: string };
@@ -40,7 +45,7 @@ export function createMarketClient({ twelveDataKey }: { twelveDataKey: string })
     const cryptos = reqs.filter((r) => r.type === "crypto");
 
     if (equities.length > 0) {
-      const bySymbol = await tdEodBatch(twelveDataKey, equities.map((r) => r.symbol));
+      const bySymbol = await tdQuoteBatch(twelveDataKey, equities.map((r) => r.symbol));
       for (const r of equities) {
         const hit = bySymbol.get(r.symbol.toUpperCase());
         if (hit) quotes.push({ symbol: r.symbol.toUpperCase(), type: r.type, ...hit });
