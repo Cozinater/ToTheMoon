@@ -114,10 +114,10 @@ describe("crypto search (CoinGecko)", () => {
     ]);
   });
 
-  it("caps results at 8", async () => {
-    stubFetch({ "/search?query=co": { coins: Array.from({ length: 12 }, (_, i) => (
+  it("caps results at 12", async () => {
+    stubFetch({ "/search?query=co": { coins: Array.from({ length: 15 }, (_, i) => (
       { id: `coin-${i}`, symbol: `co${i}`, name: `Coin ${i}` })) } });
-    expect(await cgSearch("co")).toHaveLength(8);
+    expect(await cgSearch("co")).toHaveLength(12);
   });
 
   it("returns [] when the payload has no coins array", async () => {
@@ -138,6 +138,19 @@ describe("search", () => {
     const results = await client().search("UNI");
     expect(results.map((r) => `${r.symbol}:${r.type}`)).toEqual(
       ["UNI:stock", "UNI:crypto", "UNIT:stock"]);
+  });
+
+  it("keeps the exact crypto match, USD-priced, even when equities fill every slot", async () => {
+    stubFetch({
+      "/symbol_search?symbol=BTC": { status: "ok", data: Array.from({ length: 12 }, (_, i) => ({
+        symbol: "BTC", instrument_name: `BTC Equity ${i}`, instrument_type: "Common Stock",
+        exchange: `EX${i}`, currency: "THB",
+      })) },
+      "/search?query=BTC": { coins: [{ id: "bitcoin", symbol: "btc", name: "Bitcoin" }] },
+    });
+    const results = await client().search("BTC");
+    // Crypto survives the merge, and is priced in USD so the dropdown keeps it selectable.
+    expect(results).toContainEqual({ symbol: "BTC", name: "Bitcoin", type: "crypto", currency: "USD" });
   });
 
   it("returns partial results when one source fails", async () => {

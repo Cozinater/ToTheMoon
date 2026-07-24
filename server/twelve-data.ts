@@ -1,4 +1,4 @@
-import { MarketError, type Fx } from "./market.ts";
+import { MarketError, SEARCH_LIMIT, type Fx } from "./market.ts";
 
 const BASE = "https://api.twelvedata.com";
 
@@ -59,7 +59,7 @@ type SymbolSearchPayload = {
 
 /** symbol_search is a credit-free utility endpoint on the free tier. */
 export async function tdSymbolSearch(key: string, q: string): Promise<EquitySearchHit[]> {
-  const body = await get("/symbol_search", { symbol: q, outputsize: "8" }, key) as SymbolSearchPayload;
+  const body = await get("/symbol_search", { symbol: q, outputsize: String(SEARCH_LIMIT) }, key) as SymbolSearchPayload;
   return (body.data ?? [])
     .filter((d) => d.symbol && d.instrument_name)
     .map((d) => ({

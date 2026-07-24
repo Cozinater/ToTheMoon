@@ -2,6 +2,9 @@ import type { AssetType } from "../shared/schema.ts";
 import { cgQuotes, cgSearch } from "./coingecko.ts";
 import { tdEodBatch, tdFx, tdSymbolSearch } from "./twelve-data.ts";
 
+/** Max combined search results returned to the client (also the per-source fetch size). */
+export const SEARCH_LIMIT = 12;
+
 export type Quote = { symbol: string; type: AssetType; priceUsd: number; asOf: string };
 export type Fx = { pair: "USD/SGD"; rate: number; asOf: string };
 export type SearchResult = {
@@ -10,6 +13,16 @@ export type SearchResult = {
 
 export class MarketError extends Error {
   constructor(public code: "TICKER_NOT_FOUND" | "UPSTREAM", message: string) { super(message); }
+}
+
+/** Round-robin merge of two lists, preserving each list's order (a wins ties). */
+function interleave<T>(a: T[], b: T[]): T[] {
+  const out: T[] = [];
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    if (i < a.length) out.push(a[i]!);
+    if (i < b.length) out.push(b[i]!);
+  }
+  return out;
 }
 
 export interface MarketClient {
@@ -58,10 +71,12 @@ export function createMarketClient({ twelveDataKey }: { twelveDataKey: string })
     const cg: SearchResult[] = (cryptos.status === "fulfilled" ? cryptos.value : [])
       .map((h) => ({ ...h, type: "crypto" as const, currency: "USD" }));
     const exact = (r: SearchResult) => r.symbol === upper;
+    // Interleave the two sources per tier so a fully-populated equity list can't
+    // crowd out an exact crypto match (e.g. "BTC" returns a full page of equities).
     return [
-      ...eq.filter(exact), ...cg.filter(exact),
-      ...eq.filter((r) => !exact(r)), ...cg.filter((r) => !exact(r)),
-    ].slice(0, 8);
+      ...interleave(eq.filter(exact), cg.filter(exact)),
+      ...interleave(eq.filter((r) => !exact(r)), cg.filter((r) => !exact(r))),
+    ].slice(0, SEARCH_LIMIT);
   }
 
   return {

@@ -1,4 +1,4 @@
-import { MarketError } from "./market.ts";
+import { MarketError, SEARCH_LIMIT } from "./market.ts";
 
 const BASE = "https://api.coingecko.com/api/v3";
 
@@ -40,5 +40,5 @@ export type CryptoSearchHit = { symbol: string; name: string };
 export async function cgSearch(q: string): Promise<CryptoSearchHit[]> {
   const body = await get(`/search?query=${encodeURIComponent(q)}`) as
     { coins?: { symbol: string; name: string }[] };
-  return (body.coins ?? []).slice(0, 8).map((c) => ({ symbol: c.symbol.toUpperCase(), name: c.name }));
+  return (body.coins ?? []).slice(0, SEARCH_LIMIT).map((c) => ({ symbol: c.symbol.toUpperCase(), name: c.name }));
 }
