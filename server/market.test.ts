@@ -17,25 +17,28 @@ function stubFetch(routes: Record<string, unknown>) {
     throw new Error(`unexpected fetch: ${u}`);
   }));
 }
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
 
 const client = () => createMarketClient({ twelveDataKey: "test-key" });
 
 describe("stock/etf quotes (Twelve Data)", () => {
-  it("returns a USD quote", async () => {
-    stubFetch({ "/eod?symbol=AAPL": { symbol: "AAPL", currency: "USD", datetime: "2026-07-03", close: "255.75" } });
+  it("returns the live price stamped with today, not the quote's bar date", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-24T12:00:00Z"));
+    // datetime is deliberately stale — the as-of must be today, like crypto, not this bar's date.
+    stubFetch({ "/quote?symbol=AAPL": { symbol: "AAPL", currency: "USD", datetime: "2020-01-01", close: "255.75" } });
     expect(await client().quote("AAPL", "stock")).toEqual(
-      { symbol: "AAPL", type: "stock", priceUsd: 255.75, asOf: "2026-07-03" });
+      { symbol: "AAPL", type: "stock", priceUsd: 255.75, asOf: "2026-07-24" });
   });
 
   it("maps upstream 404 payload to TICKER_NOT_FOUND", async () => {
-    stubFetch({ "/eod?symbol=VOOO": { code: 404, status: "error", message: "symbol not found" } });
+    stubFetch({ "/quote?symbol=VOOO": { code: 404, status: "error", message: "symbol not found" } });
     await expect(client().quote("VOOO", "etf")).rejects.toMatchObject(
       { code: "TICKER_NOT_FOUND" } satisfies Partial<MarketError>);
   });
 
   it("rejects non-USD listings", async () => {
-    stubFetch({ "/eod?symbol=D05": { symbol: "D05", currency: "SGD", datetime: "2026-07-03", close: "35.10" } });
+    stubFetch({ "/quote?symbol=D05": { symbol: "D05", currency: "SGD", close: "35.10" } });
     await expect(client().quote("D05", "stock")).rejects.toMatchObject({ code: "TICKER_NOT_FOUND" });
   });
 });
@@ -67,8 +70,8 @@ describe("fx", () => {
 describe("quoteBatch", () => {
   it("mixes types, one call per provider, collects failures", async () => {
     stubFetch({
-      "/eod?symbol=VOO%2CXXX": {
-        VOO: { symbol: "VOO", currency: "USD", datetime: "2026-07-03", close: "603.79" },
+      "/quote?symbol=VOO%2CXXX": {
+        VOO: { symbol: "VOO", currency: "USD", close: "603.79" },
         XXX: { code: 404, status: "error", message: "not found" },
       },
       "/search?query=BTC": { coins: [{ id: "bitcoin", symbol: "btc" }] },

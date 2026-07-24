@@ -1,4 +1,4 @@
-import { MarketError, SEARCH_LIMIT } from "./market.ts";
+import { MarketError, SEARCH_LIMIT, todayIso } from "./market.ts";
 
 const BASE = "https://api.coingecko.com/api/v3";
 
@@ -27,7 +27,7 @@ export async function cgQuotes(symbols: string[]): Promise<Map<string, { priceUs
   if (ids.size === 0) return out;
   const prices = await get(`/simple/price?ids=${[...ids.values()].join(",")}&vs_currencies=usd`) as
     Record<string, { usd?: number }>;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayIso();
   for (const [symbol, id] of ids) {
     const usd = prices[id]?.usd;
     if (typeof usd === "number") out.set(symbol, { priceUsd: usd, asOf: today });

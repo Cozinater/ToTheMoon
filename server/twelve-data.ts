@@ -1,9 +1,9 @@
-import { MarketError, SEARCH_LIMIT, type Fx } from "./market.ts";
+import { MarketError, SEARCH_LIMIT, todayIso, type Fx } from "./market.ts";
 
 const BASE = "https://api.twelvedata.com";
 
-type EodPayload = {
-  symbol?: string; currency?: string; datetime?: string; close?: string;
+type QuotePayload = {
+  symbol?: string; currency?: string; close?: string;
   code?: number; status?: string; message?: string;
 };
 
@@ -16,24 +16,25 @@ async function get(path: string, params: Record<string, string>, key: string): P
   return res.json();
 }
 
-function toQuote(p: EodPayload): { priceUsd: number; asOf: string } | null {
-  if (p.status === "error" || !p.close || !p.datetime) return null;
+function toQuote(p: QuotePayload): { priceUsd: number; asOf: string } | null {
+  if (p.status === "error" || !p.close) return null;
   if (p.currency && p.currency !== "USD") return null; // only USD-quoted tickers supported
-  return { priceUsd: Number(p.close), asOf: p.datetime };
+  // Stamp the current date, like crypto — the /quote close is the live price, not a settled EOD bar.
+  return { priceUsd: Number(p.close), asOf: todayIso() };
 }
 
 /** One request for all symbols (1 credit each, one HTTP call — free tier is 8 credits/min). */
-export async function tdEodBatch(key: string, symbols: string[]): Promise<Map<string, { priceUsd: number; asOf: string }>> {
+export async function tdQuoteBatch(key: string, symbols: string[]): Promise<Map<string, { priceUsd: number; asOf: string }>> {
   const upper = symbols.map((s) => s.toUpperCase());
-  const body = await get("/eod", { symbol: upper.join(",") }, key) as Record<string, EodPayload> | EodPayload;
+  const body = await get("/quote", { symbol: upper.join(",") }, key) as Record<string, QuotePayload> | QuotePayload;
   const out = new Map<string, { priceUsd: number; asOf: string }>();
   if (upper.length === 1) {
-    const q = toQuote(body as EodPayload);
+    const q = toQuote(body as QuotePayload);
     if (q) out.set(upper[0]!, q);
     return out;
   }
   for (const s of upper) {
-    const q = toQuote((body as Record<string, EodPayload>)[s] ?? {});
+    const q = toQuote((body as Record<string, QuotePayload>)[s] ?? {});
     if (q) out.set(s, q);
   }
   return out;

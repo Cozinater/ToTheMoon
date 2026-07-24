@@ -62,7 +62,7 @@ export function HoldingForm(props: {
         api<FxResponse>("/api/fx"),
       ]);
       setQuote({ status: "ok", quote: q, fxRate: fx.rate });
-      setAsOf(q.asOf); // keep the holding's as-of consistent with the fetched EOD price
+      setAsOf(q.asOf); // keep the holding's as-of consistent with the fetched price's date
     } catch (err) {
       setQuote({
         status: "error",
@@ -105,7 +105,7 @@ export function HoldingForm(props: {
       onOpenChange={props.onOpenChange}
       onEscapeKeyDown={(e) => { if (listOpen) e.preventDefault(); }}
       title={props.initial ? `Edit ${props.initial.ticker}` : "Add holding"}
-      description="Pick an instrument and we'll fetch its end-of-day USD price."
+      description="Pick an instrument and we'll fetch its latest USD price."
     >
       <div className="grid gap-4">
         <div className="grid gap-1.5">
@@ -128,7 +128,7 @@ export function HoldingForm(props: {
         </div>
 
         <div className="rounded-xl border border-border/60 bg-muted/40 px-4 py-3 text-sm">
-          {quote.status === "idle" && <span className="text-muted-foreground">Search for an instrument to fetch its end-of-day price.</span>}
+          {quote.status === "idle" && <span className="text-muted-foreground">Search for an instrument to fetch its latest price.</span>}
           {quote.status === "loading" && <Skeleton className="h-5 w-40" />}
           {quote.status === "ok" && (
             Number.isFinite(quantity) && quantity > 0 ? (
