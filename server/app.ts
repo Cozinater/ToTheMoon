@@ -2,8 +2,8 @@ import { Hono, type Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { z } from "zod";
 import {
-  amendInputSchema, assetTypeSchema, closeInputSchema, draftInputSchema,
-  emptyDraft, type AssetType, type Snapshot,
+  amendInputSchema, assetTypeSchema, closeInputSchema, defaultSettings, draftInputSchema,
+  emptyDraft, settingsSchema, type AssetType, type Snapshot,
 } from "../shared/schema.ts";
 import { computeTotals } from "../shared/totals.ts";
 import {
@@ -84,6 +84,28 @@ export function createApp({ store, market, originSecret, auth }: AppDeps) {
     const draft = { ...parsed.data, updatedAt: new Date().toISOString() };
     await store.putDraft(draft);
     return c.json(draft);
+  });
+
+  api.get("/settings", async (c) => c.json(await store.getSettings() ?? defaultSettings()));
+
+  api.put("/settings", async (c) => {
+    const parsed = settingsSchema.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return invalid(c, parsed.error.issues);
+    const seen = new Set<string>();
+    const strategies: string[] = [];
+    for (const raw of parsed.data.strategies) {
+      const s = raw.trim();
+      const key = s.toLowerCase();
+      if (s === "" || seen.has(key)) continue;
+      seen.add(key);
+      strategies.push(s);
+    }
+    if (strategies.length === 0) {
+      return c.json({ error: "VALIDATION", message: "At least one strategy is required" }, 400);
+    }
+    const settings = { strategies };
+    await store.putSettings(settings);
+    return c.json(settings);
   });
 
   api.post("/close", async (c) => {

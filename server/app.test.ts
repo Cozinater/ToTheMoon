@@ -258,3 +258,33 @@ describe("search", () => {
     expect((await app.request("/api/search?q=btc")).status).toBe(502);
   });
 });
+
+describe("settings", () => {
+  it("GET returns the default strategies when none saved", async () => {
+    const res = await makeApp().request("/api/settings");
+    expect(res.status).toBe(200);
+    expect((await json(res)).strategies).toEqual(["China", "Turn Around", "Speculative", "Long Term"]);
+  });
+
+  it("PUT normalizes: trims, drops blanks, dedupes case-insensitively, then persists", async () => {
+    const app = makeApp();
+    const res = await app.request("/api/settings", jsonReq("PUT", {
+      strategies: [" China ", "china", "Long Term"],
+    }));
+    expect(res.status).toBe(200);
+    expect((await json(res)).strategies).toEqual(["China", "Long Term"]);
+    expect((await json(await app.request("/api/settings"))).strategies).toEqual(["China", "Long Term"]);
+  });
+
+  it("PUT rejects an empty list with VALIDATION", async () => {
+    const res = await makeApp().request("/api/settings", jsonReq("PUT", { strategies: [] }));
+    expect(res.status).toBe(400);
+    expect((await json(res)).error).toBe("VALIDATION");
+  });
+
+  it("PUT rejects a list that normalizes to empty (all blanks)", async () => {
+    const res = await makeApp().request("/api/settings", jsonReq("PUT", { strategies: ["   "] }));
+    expect(res.status).toBe(400);
+    expect((await json(res)).error).toBe("VALIDATION");
+  });
+});
