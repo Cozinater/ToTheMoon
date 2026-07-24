@@ -22,14 +22,14 @@ const TYPE_TABS: { value: "all" | AssetType; label: string }[] = [
 
 // Per-column cell classes (also hides Type/Price on mobile to avoid horizontal scroll)
 const CELL_CLASS: Record<string, string> = {
-  ticker: "px-5 py-4",
-  type: "hidden px-5 py-4 sm:table-cell",
-  strategy: "hidden px-5 py-4 sm:table-cell",
-  quantity: "px-5 py-4 text-right",
-  priceUsd: "hidden px-5 py-4 text-right sm:table-cell",
-  valueUsd: "px-5 py-4 text-right",
-  share: "px-5 py-4 text-right",
-  actions: "w-24 px-3 py-4 text-right whitespace-nowrap",
+  ticker: "px-5 py-[0.7rem]",
+  type: "hidden px-5 py-[0.7rem] sm:table-cell",
+  strategy: "hidden px-5 py-[0.7rem] sm:table-cell",
+  quantity: "px-5 py-[0.7rem] text-right",
+  priceUsd: "hidden px-5 py-[0.7rem] text-right sm:table-cell",
+  valueUsd: "px-5 py-[0.7rem] text-right",
+  share: "px-5 py-[0.7rem] text-right",
+  actions: "w-24 px-3 py-[0.7rem] text-right whitespace-nowrap",
 };
 
 export function HoldingsTable(props: {
