@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  amendInputSchema, draftInputSchema, emptyDraft, holdingSchema,
+  amendInputSchema, draftInputSchema, emptyDraft, holdingSchema, settingsSchema, defaultSettings,
 } from "./schema.ts";
 
 const entry = (name: string) => ({
@@ -53,5 +53,33 @@ describe("amendInputSchema", () => {
     expect(amendInputSchema.safeParse({ ...base, fxRate: undefined }).success).toBe(false);
     const withTotals = amendInputSchema.parse({ ...base, totals: { netWorthSgd: 1 } });
     expect("totals" in withTotals).toBe(false); // stripped, recomputed server-side
+  });
+});
+
+describe("holdingSchema strategy", () => {
+  it("accepts a holding with or without a strategy", () => {
+    expect(holdingSchema.safeParse(holding()).success).toBe(true);
+    expect(holdingSchema.safeParse({ ...holding(), strategy: "Long Term" }).success).toBe(true);
+  });
+  it("rejects an empty or over-long strategy", () => {
+    expect(holdingSchema.safeParse({ ...holding(), strategy: "" }).success).toBe(false);
+    expect(holdingSchema.safeParse({ ...holding(), strategy: "x".repeat(41) }).success).toBe(false);
+  });
+});
+
+describe("settingsSchema", () => {
+  it("accepts the default settings", () => {
+    expect(settingsSchema.safeParse(defaultSettings()).success).toBe(true);
+    expect(defaultSettings().strategies).toEqual(["China", "Turn Around", "Speculative", "Long Term"]);
+  });
+  it("requires at least one strategy and caps the list at 20", () => {
+    expect(settingsSchema.safeParse({ strategies: [] }).success).toBe(false);
+    expect(settingsSchema.safeParse({
+      strategies: Array.from({ length: 21 }, (_, i) => `s${i}`),
+    }).success).toBe(false);
+  });
+  it("rejects blank or over-long entries", () => {
+    expect(settingsSchema.safeParse({ strategies: [""] }).success).toBe(false);
+    expect(settingsSchema.safeParse({ strategies: ["x".repeat(41)] }).success).toBe(false);
   });
 });
