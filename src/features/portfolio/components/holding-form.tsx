@@ -1,10 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/date-picker";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ResponsiveModal } from "@/components/responsive-modal";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { useSettings } from "@/hooks/use-settings";
 import { api, ApiError } from "@/lib/api";
 import { qty, usd } from "@/lib/format";
 import { round2 } from "@shared/totals";
@@ -32,12 +36,15 @@ export function HoldingForm(props: {
   const [asOf, setAsOf] = useState("");
   const [quote, setQuote] = useState<QuoteState>({ status: "idle" });
   const [listOpen, setListOpen] = useState(false);
+  const { data: settings } = useSettings();
+  const [strategy, setStrategy] = useState("");
 
   useEffect(() => {
     if (!props.open) return;
     setSelected(props.initial ? fromHolding(props.initial) : null);
     setQuantityStr(props.initial ? String(props.initial.quantity) : "");
     setAsOf(props.initial?.asOf ?? "");
+    setStrategy(props.initial?.strategy ?? "");
     if (props.initial) {
       setQuote({
         status: "ok",
@@ -53,6 +60,11 @@ export function HoldingForm(props: {
       setQuote({ status: "idle" });
     }
   }, [props.open, props.initial]);
+
+  useEffect(() => {
+    if (!props.open || strategy !== "" || !settings) return;
+    setStrategy(settings.strategies.includes("Long Term") ? "Long Term" : settings.strategies[0] ?? "");
+  }, [props.open, strategy, settings]);
 
   async function fetchQuote(symbol: string, type: AssetType) {
     setQuote({ status: "loading" });
@@ -82,6 +94,11 @@ export function HoldingForm(props: {
     selected !== null && quote.status === "ok" && quote.quote.symbol === selected.symbol &&
     asOf !== "" && Number.isFinite(quantity) && quantity > 0;
 
+  const strategyOptions = useMemo(() => {
+    const base = settings?.strategies ?? [];
+    return strategy && !base.includes(strategy) ? [...base, strategy] : base;
+  }, [settings, strategy]);
+
   function save() {
     if (!selected || quote.status !== "ok" || !canSave) return;
     props.onSave(
@@ -93,6 +110,7 @@ export function HoldingForm(props: {
         priceUsd: quote.quote.priceUsd,
         valueUsd: round2(quantity * quote.quote.priceUsd),
         asOf,
+        strategy: strategy || undefined,
       },
       quote.fxRate,
     );
@@ -125,6 +143,20 @@ export function HoldingForm(props: {
             <Label htmlFor="asOf">As-of date</Label>
             <DatePicker id="asOf" value={asOf} onChange={setAsOf} />
           </div>
+        </div>
+
+        <div className="grid gap-1.5">
+          <Label htmlFor="strategy">Strategy</Label>
+          <Select value={strategy} onValueChange={setStrategy}>
+            <SelectTrigger id="strategy">
+              <SelectValue placeholder="Select a strategy" />
+            </SelectTrigger>
+            <SelectContent>
+              {strategyOptions.map((s) => (
+                <SelectItem key={s} value={s}>{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="rounded-xl border border-border/60 bg-muted/40 px-4 py-3 text-sm">
