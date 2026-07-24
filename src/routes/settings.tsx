@@ -2,6 +2,7 @@ import { createRoute } from "@tanstack/react-router";
 import { rootRoute } from "@/routes/__root";
 import { PageHeader } from "@/components/page-header";
 import { CloseMonthCard } from "@/features/settings/components/close-month-card";
+import { StrategiesCard } from "@/features/settings/components/strategies-card";
 import { SessionCard } from "@/features/settings/components/session-card";
 import { DangerZone } from "@/features/settings/components/danger-zone";
 
@@ -17,6 +18,7 @@ function SettingsPage() {
       <PageHeader eyebrow="SETTINGS" title="Configuration" />
       <div className="grid gap-6">
         <CloseMonthCard />
+        <StrategiesCard />
         <SessionCard />
         <DangerZone />
       </div>
