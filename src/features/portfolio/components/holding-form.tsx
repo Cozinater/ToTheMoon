@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,6 +38,7 @@ export function HoldingForm(props: {
   const [listOpen, setListOpen] = useState(false);
   const { data: settings } = useSettings();
   const [strategy, setStrategy] = useState("");
+  const initialisedRef = useRef(false);
 
   useEffect(() => {
     if (!props.open) return;
@@ -45,6 +46,7 @@ export function HoldingForm(props: {
     setQuantityStr(props.initial ? String(props.initial.quantity) : "");
     setAsOf(props.initial?.asOf ?? "");
     setStrategy(props.initial?.strategy ?? "");
+    initialisedRef.current = Boolean(props.initial?.strategy);
     if (props.initial) {
       setQuote({
         status: "ok",
@@ -62,9 +64,10 @@ export function HoldingForm(props: {
   }, [props.open, props.initial]);
 
   useEffect(() => {
-    if (!props.open || strategy !== "" || !settings) return;
-    setStrategy(settings.strategies.includes("Long Term") ? "Long Term" : settings.strategies[0] ?? "");
-  }, [props.open, strategy, settings]);
+    if (!props.open || initialisedRef.current || !settings) return;
+    const def = settings.strategies.includes("Long Term") ? "Long Term" : settings.strategies[0] ?? "";
+    if (def) { setStrategy(def); initialisedRef.current = true; }
+  }, [props.open, settings]);
 
   async function fetchQuote(symbol: string, type: AssetType) {
     setQuote({ status: "loading" });
