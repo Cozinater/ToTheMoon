@@ -2,7 +2,7 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
   BatchWriteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand,
 } from "@aws-sdk/lib-dynamodb";
-import type { Draft, Snapshot } from "../shared/schema.ts";
+import type { Draft, Settings, Snapshot } from "../shared/schema.ts";
 import type { SnapshotStore } from "./store.ts";
 
 const PK = "USER";
@@ -27,6 +27,17 @@ export class DynamoStore implements SnapshotStore {
 
   async putDraft(draft: Draft): Promise<void> {
     await this.doc.send(new PutCommand({ TableName: this.table, Item: { pk: PK, sk: "DRAFT", ...draft } }));
+  }
+
+  async getSettings(): Promise<Settings | null> {
+    const res = await this.doc.send(new GetCommand({ TableName: this.table, Key: { pk: PK, sk: "SETTINGS" } }));
+    if (!res.Item) return null;
+    const { pk: _pk, sk: _sk, ...settings } = res.Item;
+    return settings as Settings;
+  }
+
+  async putSettings(settings: Settings): Promise<void> {
+    await this.doc.send(new PutCommand({ TableName: this.table, Item: { pk: PK, sk: "SETTINGS", ...settings } }));
   }
 
   async getSnapshot(month: string): Promise<Snapshot | null> {

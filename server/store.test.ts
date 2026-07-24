@@ -47,6 +47,19 @@ function behavesLikeAStore(make: () => SnapshotStore) {
     expect(await store.getDraft()).toBeNull();
     expect(await store.listSnapshots()).toEqual([]);
   });
+
+  it("settings: null until put, then returned", async () => {
+    expect(await store.getSettings()).toBeNull();
+    const settings = { strategies: ["China", "Long Term"] };
+    await store.putSettings(settings);
+    expect(await store.getSettings()).toEqual(settings);
+  });
+
+  it("reset clears settings too", async () => {
+    await store.putSettings({ strategies: ["China"] });
+    await store.reset();
+    expect(await store.getSettings()).toBeNull();
+  });
 }
 
 describe("MemoryStore", () => behavesLikeAStore(() => new MemoryStore()));
@@ -62,5 +75,13 @@ describe("FileStore", () => {
     const b = new FileStore(file);
     expect((await b.getSnapshot("2026-06"))?.month).toBe("2026-06");
     expect(JSON.parse(readFileSync(file, "utf8")).snapshots["2026-06"]).toBeTruthy();
+  });
+
+  it("persists settings across instances", async () => {
+    const file = join(dir, "settings.json");
+    const a = new FileStore(file);
+    await a.putSettings({ strategies: ["Long Term", "China"] });
+    const b = new FileStore(file);
+    expect((await b.getSettings())?.strategies).toEqual(["Long Term", "China"]);
   });
 });
