@@ -36,10 +36,16 @@ export function StrategiesCard() {
       setNote({ kind: "err", text: "Add at least one strategy." });
       return;
     }
+    const dropped = rows.length - cleaned.length;
     saveSettings.mutate({ strategies: cleaned }, {
       onSuccess: (s) => {
         setRows(s.strategies.map((value) => ({ id: crypto.randomUUID(), value })));
-        setNote({ kind: "ok", text: "Strategies saved." });
+        setNote({
+          kind: "ok",
+          text: dropped > 0
+            ? `Saved — removed ${dropped} blank or duplicate ${dropped === 1 ? "entry" : "entries"}.`
+            : "Strategies saved.",
+        });
       },
       onError: (err) => setNote({ kind: "err", text: err.message }),
     });

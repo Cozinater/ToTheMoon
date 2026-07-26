@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  amendInputSchema, draftInputSchema, emptyDraft, holdingSchema, settingsSchema, defaultSettings,
+  amendInputSchema, defaultSettings, draftInputSchema, emptyDraft, holdingSchema, settingsSchema,
 } from "./schema.ts";
 
 const entry = (name: string) => ({

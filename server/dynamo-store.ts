@@ -90,6 +90,6 @@ export class DynamoStore implements SnapshotStore {
         RequestItems: { [this.table]: keys.slice(i, i + 25).map((Key) => ({ DeleteRequest: { Key } })) },
       }));
     }
-    return keys.length;
+    return keys.filter((k) => k.sk !== "SETTINGS").length;
   }
 }

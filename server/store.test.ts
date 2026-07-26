@@ -60,6 +60,14 @@ function behavesLikeAStore(make: () => SnapshotStore) {
     await store.reset();
     expect(await store.getSettings()).toBeNull();
   });
+
+  it("reset excludes settings from its count", async () => {
+    await store.putDraft(emptyDraft());
+    await store.createSnapshot(snap("2026-06"));
+    await store.putSettings({ strategies: ["China"] });
+    expect(await store.reset()).toBe(2); // draft + 1 snapshot; settings not counted
+    expect(await store.getSettings()).toBeNull();
+  });
 }
 
 describe("MemoryStore", () => behavesLikeAStore(() => new MemoryStore()));

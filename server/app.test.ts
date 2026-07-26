@@ -287,4 +287,12 @@ describe("settings", () => {
     expect(res.status).toBe(400);
     expect((await json(res)).error).toBe("VALIDATION");
   });
+
+  it("PUT drops blanks among valid entries, keeping the rest", async () => {
+    const res = await makeApp().request("/api/settings", jsonReq("PUT", {
+      strategies: ["China", "   ", "Long Term"],
+    }));
+    expect(res.status).toBe(200);
+    expect((await json(res)).strategies).toEqual(["China", "Long Term"]);
+  });
 });
