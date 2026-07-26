@@ -12,6 +12,7 @@ const stubMarket = (over: Partial<MarketClient> = {}): MarketClient => ({
   quoteBatch: vi.fn(async (reqs: Array<{ symbol: string; type: AssetType }>) => ({
     quotes: reqs.map((r) => ({ symbol: r.symbol, type: r.type, priceUsd: 100, asOf: "2026-07-01" })),
     failed: [],
+    rateLimited: [],
   })),
   fx: vi.fn(async () => ({ pair: "USD/SGD" as const, rate: 1.3, asOf: "2026-07-01" })),
   search: vi.fn(async () => []),
@@ -150,6 +151,15 @@ describe("quote / fx / reset", () => {
     expect((await json(res)).error).toBe("TICKER_NOT_FOUND");
     const app2 = makeApp({ fx: vi.fn(async () => { throw new MarketError("UPSTREAM", "down"); }) });
     expect((await app2.request("/api/fx")).status).toBe(502);
+    const app3 = makeApp({ quote: vi.fn(async () => { throw new MarketError("RATE_LIMITED", "slow down"); }) });
+    expect((await app3.request("/api/quote?symbol=AAPL&type=stock")).status).toBe(429);
+  });
+
+  it("batch response surfaces rate-limited symbols", async () => {
+    const app = makeApp({ quoteBatch: vi.fn(async () => ({
+      quotes: [], failed: [], rateLimited: ["FICO", "FSLY"] })) });
+    const batch = await json(await app.request("/api/quote?symbols=FICO:stock,FSLY:stock"));
+    expect(batch.rateLimited).toEqual(["FICO", "FSLY"]);
   });
 
   it("bad type param → 400", async () => {

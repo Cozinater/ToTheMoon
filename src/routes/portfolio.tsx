@@ -73,7 +73,12 @@ function PortfolioPage() {
         return q ? { ...h, priceUsd: q.priceUsd, valueUsd: round2(h.quantity * q.priceUsd), asOf: q.asOf } : h;
       });
       save.mutate({ ...draft, holdings, fxRate: fx.rate });
-      if (batch.failed.length > 0) setNote(`Couldn't refresh: ${batch.failed.join(", ")}`);
+      const notes: string[] = [];
+      if (batch.rateLimited.length > 0) {
+        notes.push(`Price limit hit — click Refresh again in ~1 min for: ${batch.rateLimited.join(", ")}`);
+      }
+      if (batch.failed.length > 0) notes.push(`Couldn't refresh: ${batch.failed.join(", ")}`);
+      setNote(notes.length > 0 ? notes.join(" · ") : null);
     } catch (err) {
       setNote(err instanceof ApiError ? err.message : "Refresh failed — try again");
     } finally {

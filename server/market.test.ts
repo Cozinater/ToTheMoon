@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { MarketError, createMarketClient } from "./market.ts";
 import { tdSymbolSearch } from "./twelve-data.ts";
 import { cgSearch } from "./coingecko.ts";
+import { MemoryDayCache } from "./quote-cache.ts";
 
 const json = (body: unknown) => new Response(JSON.stringify(body), {
   status: 200, headers: { "content-type": "application/json" },
@@ -19,27 +20,94 @@ function stubFetch(routes: Record<string, unknown>) {
 }
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
 
-const client = () => createMarketClient({ twelveDataKey: "test-key" });
+const client = (cache = new MemoryDayCache()) =>
+  createMarketClient({ twelveDataKey: "test-key", cache });
 
 describe("stock/etf quotes (Twelve Data)", () => {
-  it("returns the live price stamped with today, not the quote's bar date", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-07-24T12:00:00Z"));
-    // datetime is deliberately stale — the as-of must be today, like crypto, not this bar's date.
-    stubFetch({ "/quote?symbol=AAPL": { symbol: "AAPL", currency: "USD", datetime: "2020-01-01", close: "255.75" } });
+  it("returns the end-of-day close stamped with the bar's date", async () => {
+    stubFetch({ "/eod?symbol=AAPL": { symbol: "AAPL", currency: "USD", datetime: "2026-07-03", close: "255.75" } });
     expect(await client().quote("AAPL", "stock")).toEqual(
-      { symbol: "AAPL", type: "stock", priceUsd: 255.75, asOf: "2026-07-24" });
+      { symbol: "AAPL", type: "stock", priceUsd: 255.75, asOf: "2026-07-03" });
   });
 
   it("maps upstream 404 payload to TICKER_NOT_FOUND", async () => {
-    stubFetch({ "/quote?symbol=VOOO": { code: 404, status: "error", message: "symbol not found" } });
+    stubFetch({ "/eod?symbol=VOOO": { code: 404, status: "error", message: "symbol not found" } });
     await expect(client().quote("VOOO", "etf")).rejects.toMatchObject(
       { code: "TICKER_NOT_FOUND" } satisfies Partial<MarketError>);
   });
 
   it("rejects non-USD listings", async () => {
-    stubFetch({ "/quote?symbol=D05": { symbol: "D05", currency: "SGD", close: "35.10" } });
+    stubFetch({ "/eod?symbol=D05": { symbol: "D05", currency: "SGD", datetime: "2026-07-03", close: "35.10" } });
     await expect(client().quote("D05", "stock")).rejects.toMatchObject({ code: "TICKER_NOT_FOUND" });
+  });
+});
+
+describe("quoteBatch caching & rate-limit handling", () => {
+  const stock = (symbol: string) => ({ symbol, type: "stock" as const });
+  const eodBody = (symbols: string[]) =>
+    Object.fromEntries(symbols.map((s) => [s, { symbol: s, currency: "USD", datetime: "2026-07-03", close: "10" }]));
+
+  it("caps equity fetches at the per-minute budget and rate-limits the overflow", async () => {
+    let requested: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string | URL) => {
+      requested = new URL(String(url)).searchParams.get("symbol")!.split(",");
+      return json(eodBody(requested));
+    }));
+    const symbols = Array.from({ length: 10 }, (_, i) => `S${i + 1}`);
+    const { quotes, rateLimited, failed } = await client().quoteBatch(symbols.map(stock));
+    expect(requested).toHaveLength(7);                       // only 7 sent to Twelve Data
+    expect(quotes).toHaveLength(7);
+    expect(failed).toEqual([]);
+    expect(rateLimited.sort()).toEqual(["S10", "S8", "S9"]); // the 3 over the cap
+  });
+
+  it("rate-limits (does not throw) when Twelve Data returns HTTP 429", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string | URL) => {
+      if (String(url).includes("/eod")) return new Response("limit", { status: 429 });
+      throw new Error(`unexpected fetch: ${url}`);
+    }));
+    const { quotes, rateLimited, failed } = await client().quoteBatch([stock("AAPL"), stock("MSFT")]);
+    expect(quotes).toEqual([]);
+    expect(failed).toEqual([]);
+    expect(rateLimited.sort()).toEqual(["AAPL", "MSFT"]);
+  });
+
+  it("still returns crypto when the equity fetch is rate-limited", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string | URL) => {
+      const u = String(url);
+      if (u.includes("/eod")) return new Response("limit", { status: 429 });
+      if (u.includes("/search?query=BTC")) return json({ coins: [{ id: "bitcoin", symbol: "btc" }] });
+      if (u.includes("/simple/price?ids=bitcoin")) return json({ bitcoin: { usd: 106535 } });
+      throw new Error(`unexpected fetch: ${u}`);
+    }));
+    const { quotes, rateLimited } = await client().quoteBatch([stock("AAPL"), { symbol: "BTC", type: "crypto" }]);
+    expect(quotes.map((q) => q.symbol)).toEqual(["BTC"]);
+    expect(rateLimited).toEqual(["AAPL"]);
+  });
+
+  it("serves a repeat refresh from cache without re-hitting Twelve Data", async () => {
+    const fetchMock = vi.fn(async (url: string | URL) => {
+      if (String(url).includes("/eod")) {
+        return json({ symbol: "AAPL", currency: "USD", datetime: "2026-07-03", close: "255.75" });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const c = client();
+    const first = await c.quoteBatch([stock("AAPL")]);
+    const second = await c.quoteBatch([stock("AAPL")]);
+    expect(first.quotes[0]!.priceUsd).toBe(255.75);
+    expect(second.quotes[0]!.priceUsd).toBe(255.75);
+    expect(fetchMock).toHaveBeenCalledTimes(1); // second refresh is a cache hit
+  });
+
+  it("caches the FX rate for the day", async () => {
+    const fetchMock = vi.fn(async () => json({ symbol: "USD/SGD", rate: 1.328, timestamp: 1782115200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const c = client();
+    await c.fx();
+    await c.fx();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -70,18 +138,19 @@ describe("fx", () => {
 describe("quoteBatch", () => {
   it("mixes types, one call per provider, collects failures", async () => {
     stubFetch({
-      "/quote?symbol=VOO%2CXXX": {
-        VOO: { symbol: "VOO", currency: "USD", close: "603.79" },
+      "/eod?symbol=VOO%2CXXX": {
+        VOO: { symbol: "VOO", currency: "USD", datetime: "2026-07-03", close: "603.79" },
         XXX: { code: 404, status: "error", message: "not found" },
       },
       "/search?query=BTC": { coins: [{ id: "bitcoin", symbol: "btc" }] },
       "/simple/price?ids=bitcoin": { bitcoin: { usd: 106535 } },
     });
-    const { quotes, failed } = await client().quoteBatch([
+    const { quotes, failed, rateLimited } = await client().quoteBatch([
       { symbol: "VOO", type: "etf" }, { symbol: "XXX", type: "stock" }, { symbol: "BTC", type: "crypto" },
     ]);
     expect(quotes.map((q) => q.symbol).sort()).toEqual(["BTC", "VOO"]);
     expect(failed).toEqual(["XXX"]);
+    expect(rateLimited).toEqual([]);
   });
 });
 
