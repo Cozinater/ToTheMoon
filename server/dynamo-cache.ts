@@ -1,5 +1,5 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { BatchGetCommand, BatchWriteCommand, DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+import { BatchWriteCommand, DynamoDBDocumentClient, GetCommand } from "@aws-sdk/lib-dynamodb";
 import type { DayCache } from "./quote-cache.ts";
 
 const PK = "USER";
@@ -26,14 +26,14 @@ export class DynamoDayCache implements DayCache {
 
   async get<T>(keys: string[], day: string): Promise<Map<string, T>> {
     const out = new Map<string, T>();
-    for (let i = 0; i < keys.length; i += 100) { // BatchGet max 100 keys
-      const chunk = keys.slice(i, i + 100);
-      const res = await this.doc.send(new BatchGetCommand({
-        RequestItems: { [this.table]: { Keys: chunk.map((k) => ({ pk: PK, sk: sk(k) })) } },
-      }));
-      for (const item of res.Responses?.[this.table] ?? []) {
-        if (item.day === day) out.set(item.cacheKey as string, item.value as T);
-      }
+    // Individual GetItem (not BatchGetItem) keeps the existing IAM policy sufficient —
+    // no Terraform change needed. RCU cost is identical, and a portfolio is at most dozens
+    // of symbols, so the extra round trips are negligible.
+    const results = await Promise.all(keys.map((key) =>
+      this.doc.send(new GetCommand({ TableName: this.table, Key: { pk: PK, sk: sk(key) } }))
+        .then((res) => ({ key, item: res.Item }))));
+    for (const { key, item } of results) {
+      if (item && item.day === day) out.set(key, item.value as T);
     }
     return out;
   }
