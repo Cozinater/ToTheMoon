@@ -27,7 +27,7 @@ export function InstrumentCombobox(props: {
   const seq = useRef(0);
 
   const q = query.trim();
-  const eligible = !props.selected && q.length >= 2;
+  const eligible = !props.selected && q.length >= 1;
 
   useEffect(() => {
     if (!eligible) return;

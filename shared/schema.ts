@@ -17,8 +17,20 @@ export const holdingSchema = z.object({
   priceUsd: z.number().nonnegative(),
   valueUsd: z.number().nonnegative(),
   asOf: isoDate,
+  strategy: z.string().min(1).max(40).optional(),
 });
 export type Holding = z.infer<typeof holdingSchema>;
+
+export const DEFAULT_STRATEGIES = ["China", "Turn Around", "Speculative", "Long Term"] as const;
+
+export const settingsSchema = z.object({
+  strategies: z.array(z.string().min(1).max(40)).min(1).max(20),
+});
+export type Settings = z.infer<typeof settingsSchema>;
+
+export function defaultSettings(): Settings {
+  return { strategies: [...DEFAULT_STRATEGIES] };
+}
 
 export const entrySchema = z.object({
   id: z.uuid(),
