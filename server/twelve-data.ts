@@ -1,9 +1,9 @@
-import { MarketError, SEARCH_LIMIT, todayIso, type Fx } from "./market.ts";
+import { MarketError, SEARCH_LIMIT, type Fx } from "./market.ts";
 
 const BASE = "https://api.twelvedata.com";
 
-type QuotePayload = {
-  symbol?: string; currency?: string; close?: string;
+type EodPayload = {
+  symbol?: string; currency?: string; datetime?: string; close?: string;
   code?: number; status?: string; message?: string;
 };
 
@@ -12,29 +12,30 @@ async function get(path: string, params: Record<string, string>, key: string): P
   let res: Response;
   try { res = await fetch(`${BASE}${path}?${qs}`); }
   catch { throw new MarketError("UPSTREAM", "Twelve Data unreachable — try again"); }
+  // 429 = free-tier per-minute credit budget exhausted; callers retry/degrade rather than fail hard.
+  if (res.status === 429) throw new MarketError("RATE_LIMITED", "Twelve Data rate limit reached — try again shortly");
   if (!res.ok) throw new MarketError("UPSTREAM", `Twelve Data error (HTTP ${res.status}) — try again`);
   return res.json();
 }
 
-function toQuote(p: QuotePayload): { priceUsd: number; asOf: string } | null {
-  if (p.status === "error" || !p.close) return null;
+function toQuote(p: EodPayload): { priceUsd: number; asOf: string } | null {
+  if (p.status === "error" || !p.close || !p.datetime) return null;
   if (p.currency && p.currency !== "USD") return null; // only USD-quoted tickers supported
-  // Stamp the current date, like crypto — the /quote close is the live price, not a settled EOD bar.
-  return { priceUsd: Number(p.close), asOf: todayIso() };
+  return { priceUsd: Number(p.close), asOf: p.datetime };
 }
 
 /** One request for all symbols (1 credit each, one HTTP call — free tier is 8 credits/min). */
-export async function tdQuoteBatch(key: string, symbols: string[]): Promise<Map<string, { priceUsd: number; asOf: string }>> {
+export async function tdEodBatch(key: string, symbols: string[]): Promise<Map<string, { priceUsd: number; asOf: string }>> {
   const upper = symbols.map((s) => s.toUpperCase());
-  const body = await get("/quote", { symbol: upper.join(",") }, key) as Record<string, QuotePayload> | QuotePayload;
+  const body = await get("/eod", { symbol: upper.join(",") }, key) as Record<string, EodPayload> | EodPayload;
   const out = new Map<string, { priceUsd: number; asOf: string }>();
   if (upper.length === 1) {
-    const q = toQuote(body as QuotePayload);
+    const q = toQuote(body as EodPayload);
     if (q) out.set(upper[0]!, q);
     return out;
   }
   for (const s of upper) {
-    const q = toQuote((body as Record<string, QuotePayload>)[s] ?? {});
+    const q = toQuote((body as Record<string, EodPayload>)[s] ?? {});
     if (q) out.set(s, q);
   }
   return out;

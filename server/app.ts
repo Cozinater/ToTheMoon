@@ -25,7 +25,7 @@ export function createApp({ store, market, originSecret, auth }: AppDeps) {
 
   app.onError((err, c) => {
     if (err instanceof MarketError) {
-      const status = err.code === "TICKER_NOT_FOUND" ? 404 : 502;
+      const status = err.code === "TICKER_NOT_FOUND" ? 404 : err.code === "RATE_LIMITED" ? 429 : 502;
       return c.json({ error: err.code, message: err.message }, status);
     }
     console.error(err);
