@@ -18,6 +18,7 @@ import { round2 } from "@shared/totals";
 import type { Holding } from "@shared/schema";
 import { HoldingsTable } from "@/features/portfolio/components/holdings-table";
 import { HoldingForm } from "@/features/portfolio/components/holding-form";
+import { StrategyMixBar } from "@/features/portfolio/components/strategy-mix-bar";
 import type { FxResponse, QuoteBatch } from "@/features/portfolio/types";
 
 export const portfolioRoute = createRoute({
@@ -102,9 +103,7 @@ function PortfolioPage() {
           </div>
         }
       />
-      <p className="-mt-4 mb-6 text-sm text-muted-foreground">
-        {draft.holdings.length} holdings · stored in USD, converted at the FX rate on close.
-      </p>
+      <StrategyMixBar holdings={draft.holdings} />
       {note && <p className="mb-4 text-sm text-negative">{note}</p>}
 
       {draft.holdings.length === 0 ? (
