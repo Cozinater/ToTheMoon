@@ -134,11 +134,14 @@ export function HoldingForm(props: {
           <InstrumentCombobox selected={selected} onSelect={handleSelect} onOpenChange={setListOpen} />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        {/* Qty only ever holds a few digits, so it gets a fixed narrow column. Below the
+            ResponsiveModal breakpoint the drawer is too narrow for three fields abreast. */}
+        <div className="grid grid-cols-[4.5rem_1fr] gap-3 sm:grid-cols-[4.5rem_1fr_1fr]">
           <div className="grid gap-1.5">
-            <Label htmlFor="quantity">Quantity</Label>
+            <Label htmlFor="quantity">Qty</Label>
             <Input
               id="quantity" type="number" inputMode="decimal" min="0" step="any" placeholder="0"
+              className="[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               value={quantityStr} onChange={(e) => setQuantityStr(e.target.value)}
             />
           </div>
@@ -146,20 +149,27 @@ export function HoldingForm(props: {
             <Label htmlFor="asOf">As-of date</Label>
             <DatePicker id="asOf" value={asOf} onChange={setAsOf} />
           </div>
-        </div>
-
-        <div className="grid gap-1.5">
-          <Label htmlFor="strategy">Strategy</Label>
-          <Select value={strategy} onValueChange={setStrategy}>
-            <SelectTrigger id="strategy">
-              <SelectValue placeholder="Select a strategy" />
-            </SelectTrigger>
-            <SelectContent>
-              {strategyOptions.map((s) => (
-                <SelectItem key={s} value={s}>{s}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="col-span-2 grid gap-1.5 sm:col-span-1">
+            <Label htmlFor="strategy">Strategy</Label>
+            <Select value={strategy} onValueChange={setStrategy}>
+              <SelectTrigger
+                id="strategy"
+                className="h-10 w-full min-w-0 gap-2 rounded-xl border-border bg-background/50 px-3 py-1 text-base focus-visible:ring-ring/40 data-[size=default]:h-10 md:text-sm dark:bg-background/50 dark:hover:bg-background/50"
+              >
+                <SelectValue placeholder="Select a strategy" />
+              </SelectTrigger>
+              {/* Anchored below the trigger, like the DatePicker's calendar popover — the
+                  item-aligned default floats the list over the Instrument field. */}
+              <SelectContent
+                position="popper" align="start" sideOffset={6}
+                className="surface w-(--radix-select-trigger-width) rounded-xl p-1 shadow-lg ring-0"
+              >
+                {strategyOptions.map((s) => (
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="rounded-xl border border-border/60 bg-muted/40 px-4 py-3 text-sm">
