@@ -2,10 +2,21 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
   BatchWriteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand,
 } from "@aws-sdk/lib-dynamodb";
+import { monthSchema } from "../shared/schema.ts";
 import type { Draft, Settings, Snapshot } from "../shared/schema.ts";
 import type { SnapshotStore } from "./store.ts";
 
 const PK = "USER";
+
+/**
+ * The partition holds more than snapshots: `sk = "DRAFT"`, `sk = "SETTINGS"` and the
+ * price cache's `sk = "CACHE#<key>"`. Snapshot keys are the "YYYY-MM" months, and every
+ * one of them falls inside this range while the others (D/S/C > "9") sort outside it.
+ */
+const MONTH_SK_LO = "0000-00";
+const MONTH_SK_HI = "9999-99";
+
+const isMonthKey = (sk: unknown) => monthSchema.safeParse(sk).success;
 
 export class DynamoStore implements SnapshotStore {
   private doc: DynamoDBDocumentClient;
@@ -50,12 +61,12 @@ export class DynamoStore implements SnapshotStore {
   async listSnapshots(): Promise<Snapshot[]> {
     const res = await this.doc.send(new QueryCommand({
       TableName: this.table,
-      KeyConditionExpression: "pk = :p",
-      ExpressionAttributeValues: { ":p": PK },
+      KeyConditionExpression: "pk = :p AND sk BETWEEN :lo AND :hi",
+      ExpressionAttributeValues: { ":p": PK, ":lo": MONTH_SK_LO, ":hi": MONTH_SK_HI },
       ScanIndexForward: false, // sk "YYYY-MM" sorts chronologically → descending = newest first
     }));
     return (res.Items ?? [])
-      .filter((item) => item.sk !== "DRAFT")
+      .filter((item) => isMonthKey(item.sk))
       .map(({ pk: _pk, sk: _sk, ...snap }) => snap as Snapshot);
   }
 
