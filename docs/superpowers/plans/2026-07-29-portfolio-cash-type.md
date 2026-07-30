@@ -18,7 +18,10 @@
 - **Branch:** `feat/portfolio-cash-type`. This checkout is **shared with a concurrent session** — Raymond may switch branches or merge underneath you. Re-check `git branch --show-current` **in the same command as every commit** (each commit step below does this). Never merge, push, rebase or force-update a branch; leave integration to Raymond.
 - **`node`/`npm` are not on PATH** in non-interactive shells. Prefix every command that runs node tooling with:
   `export PATH="$HOME/.nvm/versions/node/v22.22.2/bin:/opt/homebrew/bin:$PATH"`
-- **Verification trio** (all three must pass before every commit): `npm test`, `npm run build` (this is `tsc -b && vite build` — the only typecheck), `npm run lint`. **Note that `npx vitest run` does not typecheck**, so a green test run alone never justifies a commit.
+- **Verification gate** (all four must pass before every commit): `npm test`, `npm run build` (this is `tsc -b && vite build` — the only typecheck), `npm run build:lambda`, `npm run lint`. **Note that `npx vitest run` does not typecheck**, so a green test run alone never justifies a commit.
+  - `build:lambda` is in the gate because CI runs it (`.github/workflows/ci.yml`) and Tasks 1 touches `server/`. CI does **not** run lint.
+  - `npm run lint` must report **0 errors**. Task 0 gets it there. One `react-hooks/incompatible-library` **warning** on `holdings-table.tsx` remains and is expected — warnings do not fail `eslint`, so the command still exits 0. Do not try to remove it; it describes TanStack Table, not our code.
+- **`react-hooks/set-state-in-effect` is disabled** as of Task 0. Seeding form state in a `useEffect` on open is this repo's established idiom (`entry-form.tsx`, `holding-form.tsx`, `amend-dialog.tsx`, `strategies-card.tsx`) and new form code should match it. Do not introduce a `key`-remount or lazy-`useState` variant to avoid an effect.
 - **Vitest environment is `node`** with includes `shared/**/*.test.ts`, `server/**/*.test.ts`, `src/**/*.test.ts` (see `vite.config.ts`). There is **no jsdom and no React testing library** — do **not** write component tests. `.tsx` files are never test files. UI correctness is covered by `npm run build` + `npm run lint` + the manual check named in each UI task.
 - **Cash invariant** (every cash `Holding` must satisfy): `type: "cash"`, `priceUsd: 1`, `quantity === valueUsd === ` the USD amount, `strategy` absent.
 - **Cash label cap is 12 characters** — it reuses `holdingSchema.ticker` (`z.string().min(1).max(12)`). Do not widen the schema.
@@ -33,6 +36,7 @@
 
 | File | Responsibility | Task |
 |---|---|---|
+| `eslint.config.js` | **Modify.** Teach ESLint the repo's three conventions so lint reaches 0 errors. | 0 |
 | `shared/schema.ts` | **Modify.** Add `"cash"` to `assetTypeSchema`; add `quotableTypeSchema`. | 1 |
 | `shared/schema.test.ts` | **Modify.** Cash holding parses; `quotableTypeSchema` rejects cash. | 1 |
 | `server/market.ts` | **Modify.** Narrow every `AssetType` to `QuotableType`. | 1 |
@@ -51,7 +55,162 @@
 | `src/features/portfolio/components/cash-fields.tsx` | **Create.** Label + amount + as-of cash body. | 7 |
 | `src/routes/portfolio.tsx` | **Modify.** Keep cash out of refresh; update empty state. | 8 |
 
+**Task 0 comes first** so that "lint reports 0 errors" is a meaningful gate for every task after
+it. It is config-only and touches no `.ts`/`.tsx` source.
+
 **Ordering rationale — do not reorder Tasks 1 and 2.** Widening the enum makes `Record<AssetType, string>` at `instrument-combobox.tsx:7` non-exhaustive, which is a hard `tsc` error. So the enum change, the client type narrowing and the server guard must all land in the *same* commit. Conversely, no test may use a `type: "cash"` fixture before Task 1 — vitest would pass while `npm run build` failed. Task 1 therefore comes first and every task after it ends on a fully green trio.
+
+---
+
+### Task 0: Teach ESLint the repo's conventions so lint reaches 0 errors
+
+`npm run lint` currently reports **22 errors + 1 warning**, identical on `main`, because three
+enabled rules disagree with conventions this codebase uses deliberately. CI never ran lint
+(`.github/workflows/ci.yml` runs `build`, `build:lambda`, `test`), so they accumulated unnoticed.
+Raymond's decision: fix the configuration, change no source code.
+
+This task is **config-only**. Do not edit any `.ts` or `.tsx` file. If you find yourself rewriting
+`dynamo-store.ts`, a route file, or a form component, stop — that is explicitly not this task.
+
+**The 22 errors, and why each is a convention rather than a defect:**
+
+| Count | Rule | Where | Why it is intended |
+|---|---|---|---|
+| 8 | `@typescript-eslint/no-unused-vars` | `server/dynamo-store.ts:35,46,57,70` | Each is `const { pk: _pk, sk: _sk, ...rest } = res.Item` — destructuring to **drop** the DynamoDB key attributes. The `_`-prefixed bindings are unused on purpose. |
+| 7 | `react-refresh/only-export-components` | `src/routes/*.tsx` | Code-based TanStack Router: every route file exports its `*Route` object beside the component, and `src/router.tsx` imports them by name. |
+| 1 | `react-refresh/only-export-components` | `src/components/ui/button.tsx:68` | shadcn convention — `export { Button, buttonVariants }`. This directory is CLI-managed (see README). |
+| 6 | `react-hooks/set-state-in-effect` | 5 form components + `net-worth-hero.tsx` | Seeding state in an effect is the house form idiom. Two cases (`holding-form.tsx:69`, `strategies-card.tsx:16`) seed from **async** settings and cannot become lazy initialisers. |
+
+The remaining `react-hooks/incompatible-library` **warning** on `holdings-table.tsx:113` describes
+TanStack Table, not our code. Warnings do not fail `eslint`, so it stays.
+
+**Files:**
+- Modify: `eslint.config.js`
+
+**Interfaces:** none — no exported code changes.
+
+- [ ] **Step 1: Record the baseline**
+
+```bash
+export PATH="$HOME/.nvm/versions/node/v22.22.2/bin:/opt/homebrew/bin:$PATH"
+npx eslint . 2>&1 | tail -3
+```
+
+Expected: `✖ 23 problems (22 errors, 1 warning)`. If the numbers differ, stop and report — the
+branch has moved and the rest of this task's expectations are stale.
+
+- [ ] **Step 2: Configure the three rules**
+
+Replace `eslint.config.js` in full:
+
+```js
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import tseslint from 'typescript-eslint'
+import { defineConfig, globalIgnores } from 'eslint/config'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      js.configs.recommended,
+      tseslint.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      globals: globals.browser,
+    },
+    rules: {
+      // `const { pk: _pk, sk: _sk, ...rest } = item` is how we drop keys we don't want
+      // to carry forward; the underscore-prefixed bindings are deliberately unused.
+      // Anything NOT underscore-prefixed is still an error.
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      }],
+      // Seeding form state from props in an effect when a dialog opens is this repo's
+      // idiom across entry-form, holding-form, amend-dialog and strategies-card. The
+      // settings-driven cases can't be lazy initialisers — the data arrives async.
+      'react-hooks/set-state-in-effect': 'off',
+    },
+  },
+  {
+    // Code-based TanStack Router means every route file exports its `*Route` object
+    // next to the component (see src/router.tsx), and shadcn primitives export their
+    // `*Variants` helper. Both are library conventions, so scope the rule off here
+    // rather than listing names that every new route would have to be added to.
+    files: ['src/routes/**/*.tsx', 'src/components/ui/**/*.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
+])
+```
+
+- [ ] **Step 3: Verify lint is green and the one warning is the expected one**
+
+```bash
+export PATH="$HOME/.nvm/versions/node/v22.22.2/bin:/opt/homebrew/bin:$PATH"
+npm run lint; echo "exit=$?"
+```
+
+Expected: the `react-hooks/incompatible-library` warning on `src/features/portfolio/components/holdings-table.tsx`,
+a summary line reading `✖ 1 problem (0 errors, 1 warning)`, and `exit=0`.
+
+- [ ] **Step 4: Prove the relaxed rules still catch real problems**
+
+Configuration can silence too much. These two checks confirm the exemptions are narrow — a
+non-underscore unused variable must still error, and a non-route file must still be checked:
+
+```bash
+export PATH="$HOME/.nvm/versions/node/v22.22.2/bin:/opt/homebrew/bin:$PATH"
+printf 'const genuinelyUnused = 1;\n' > src/lint-probe.ts
+printf 'export const notAComponent = 1;\nexport function Thing() { return null; }\n' > src/lint-probe.tsx
+npx eslint src/lint-probe.ts src/lint-probe.tsx 2>&1 | tail -8
+rm -f src/lint-probe.ts src/lint-probe.tsx
+```
+
+Expected: **two** errors — `@typescript-eslint/no-unused-vars` for `genuinelyUnused`, and
+`react-refresh/only-export-components` for `lint-probe.tsx` (it is outside `src/routes/` and
+`src/components/ui/`, so the scoped exemption must not reach it).
+
+Confirm both probe files are deleted before continuing:
+
+```bash
+git status --short   # expected: only eslint.config.js modified
+```
+
+- [ ] **Step 5: Run the full verification gate**
+
+```bash
+export PATH="$HOME/.nvm/versions/node/v22.22.2/bin:/opt/homebrew/bin:$PATH"
+npm test && npm run build && npm run build:lambda && npm run lint
+```
+
+Expected: 124 tests PASS, build succeeds, lambda bundles written, lint reports 0 errors.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git branch --show-current   # MUST print feat/portfolio-cash-type — stop and report if not
+git add eslint.config.js
+git commit -F - <<'EOF'
+chore: configure eslint for the repo's existing conventions
+
+Lint reported 22 errors on main, none of them defects: the `_pk`/`_sk` omit
+idiom in dynamo-store, route files exporting their *Route object beside the
+component, shadcn's buttonVariants export, and seeding form state in an effect.
+Teaches eslint all three conventions so lint is a usable gate again. No source
+code changes.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+EOF
+```
 
 ---
 
@@ -391,7 +550,7 @@ And line 72's signature:
 
 ```bash
 export PATH="$HOME/.nvm/versions/node/v22.22.2/bin:/opt/homebrew/bin:$PATH"
-npm test && npm run build && npm run lint
+npm test && npm run build && npm run build:lambda && npm run lint
 ```
 
 Expected: all tests PASS (including the new cash and `quotableTypeSchema` cases), build succeeds,
@@ -520,7 +679,7 @@ Expected: PASS — 7 tests (2 from Task 1, 5 new).
 
 ```bash
 export PATH="$HOME/.nvm/versions/node/v22.22.2/bin:/opt/homebrew/bin:$PATH"
-npm test && npm run build && npm run lint
+npm test && npm run build && npm run build:lambda && npm run lint
 ```
 
 Expected: all PASS.
@@ -658,7 +817,7 @@ unaffected).
 
 ```bash
 export PATH="$HOME/.nvm/versions/node/v22.22.2/bin:/opt/homebrew/bin:$PATH"
-npm test && npm run build && npm run lint
+npm test && npm run build && npm run build:lambda && npm run lint
 ```
 
 Expected: all PASS.
@@ -753,7 +912,7 @@ The cash chip's condition is independent of `mix`, so a cash-only portfolio stil
 
 ```bash
 export PATH="$HOME/.nvm/versions/node/v22.22.2/bin:/opt/homebrew/bin:$PATH"
-npm test && npm run build && npm run lint
+npm test && npm run build && npm run build:lambda && npm run lint
 ```
 
 Expected: all PASS.
@@ -841,7 +1000,7 @@ unaffected.
 
 ```bash
 export PATH="$HOME/.nvm/versions/node/v22.22.2/bin:/opt/homebrew/bin:$PATH"
-npm test && npm run build && npm run lint
+npm test && npm run build && npm run build:lambda && npm run lint
 ```
 
 Expected: all PASS.
@@ -1124,11 +1283,11 @@ export function HoldingForm(props: {
 }
 ```
 
-- [ ] **Step 3: Run the full verification trio**
+- [ ] **Step 3: Run the full verification gate**
 
 ```bash
 export PATH="$HOME/.nvm/versions/node/v22.22.2/bin:/opt/homebrew/bin:$PATH"
-npm test && npm run build && npm run lint
+npm test && npm run build && npm run build:lambda && npm run lint
 ```
 
 Expected: all PASS.
@@ -1360,11 +1519,11 @@ export function HoldingForm(props: {
 Switching mode unmounts one body and mounts the other, so each initialises from its own
 `props.open` effect and no state leaks across the toggle.
 
-- [ ] **Step 3: Run the full verification trio**
+- [ ] **Step 3: Run the full verification gate**
 
 ```bash
 export PATH="$HOME/.nvm/versions/node/v22.22.2/bin:/opt/homebrew/bin:$PATH"
-npm test && npm run build && npm run lint
+npm test && npm run build && npm run build:lambda && npm run lint
 ```
 
 Expected: all PASS.
@@ -1458,11 +1617,11 @@ without implying cash gets a fetched price:
           hint="Add a stock, ETF or crypto holding and we'll fetch its latest USD price — or record the cash you have ready to deploy."
 ```
 
-- [ ] **Step 3: Run the full verification trio**
+- [ ] **Step 3: Run the full verification gate**
 
 ```bash
 export PATH="$HOME/.nvm/versions/node/v22.22.2/bin:/opt/homebrew/bin:$PATH"
-npm test && npm run build && npm run lint
+npm test && npm run build && npm run build:lambda && npm run lint
 ```
 
 Expected: all PASS.
@@ -1492,13 +1651,17 @@ EOF
 
 ## Final verification
 
-- [ ] **Full suite, build and lint from a clean tree**
+- [ ] **Full gate from a clean tree**
 
 ```bash
 export PATH="$HOME/.nvm/versions/node/v22.22.2/bin:/opt/homebrew/bin:$PATH"
-npm test && npm run build && npm run lint
+npm test && npm run build && npm run build:lambda && npm run lint
 git status --short   # expected: empty
 ```
+
+Expected: every test passes, both builds succeed, and lint reports `0 errors` with the single
+expected `incompatible-library` warning. The test count must be **higher** than the 124 baseline —
+Tasks 1, 2 and 3 all add cases.
 
 - [ ] **Confirm cash cannot reach a price provider**
 
