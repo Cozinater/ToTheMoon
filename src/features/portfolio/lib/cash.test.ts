@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Holding } from "@shared/schema";
-import { isCash, isInstrument } from "./cash";
+import { isCash, isInstrument, splitCash } from "./cash";
 
 const stock = (valueUsd: number): Holding => ({
   id: crypto.randomUUID(),
@@ -33,5 +33,37 @@ describe("isInstrument", () => {
   it("is the inverse of isCash", () => {
     expect(isInstrument(stock(1))).toBe(true);
     expect(isInstrument(cashLine(1))).toBe(false);
+  });
+});
+
+describe("splitCash", () => {
+  it("partitions holdings and totals each side", () => {
+    const split = splitCash([stock(700), cashLine(200), stock(100)]);
+    expect(split.invested.map((h) => h.valueUsd)).toEqual([700, 100]);
+    expect(split.cash.map((h) => h.valueUsd)).toEqual([200]);
+    expect(split.investedUsd).toBe(800);
+    expect(split.cashUsd).toBe(200);
+  });
+
+  it("preserves input order within each side", () => {
+    const split = splitCash([cashLine(1, "A"), cashLine(2, "B"), cashLine(3, "C")]);
+    expect(split.cash.map((h) => h.ticker)).toEqual(["A", "B", "C"]);
+  });
+
+  it("returns zeroed totals for no holdings", () => {
+    expect(splitCash([])).toEqual({ invested: [], cash: [], investedUsd: 0, cashUsd: 0 });
+  });
+
+  it("handles a cash-only portfolio", () => {
+    const split = splitCash([cashLine(5000)]);
+    expect(split.invested).toEqual([]);
+    expect(split.investedUsd).toBe(0);
+    expect(split.cashUsd).toBe(5000);
+  });
+
+  it("rounds each side to cents, like computeTotals", () => {
+    const split = splitCash([stock(0.005), stock(0.005), cashLine(0.004)]);
+    expect(split.investedUsd).toBe(0.01);
+    expect(split.cashUsd).toBe(0);
   });
 });
