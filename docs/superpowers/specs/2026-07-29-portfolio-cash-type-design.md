@@ -81,7 +81,7 @@ export const isCash = (h: Holding) => h.type === "cash";
 
 /** Splits holdings into invested positions and cash lines, with each side's USD total. */
 export function splitCash(holdings: Holding[]): {
-  invested: Holding[]; cash: Holding[]; investedUsd: number; cashUsd: number;
+  invested: InstrumentHolding[]; cash: Holding[]; investedUsd: number; cashUsd: number;
 };
 ```
 

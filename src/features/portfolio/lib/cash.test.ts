@@ -30,7 +30,7 @@ describe("isCash", () => {
 });
 
 describe("isInstrument", () => {
-  it("is the inverse of isCash", () => {
+  it("accepts instruments and rejects cash", () => {
     expect(isInstrument(stock(1))).toBe(true);
     expect(isInstrument(cashLine(1))).toBe(false);
   });
