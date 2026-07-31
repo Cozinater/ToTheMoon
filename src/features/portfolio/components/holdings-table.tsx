@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSettings } from "@/hooks/use-settings";
 import type { AssetType, Holding } from "@shared/schema";
+import { isCash } from "../lib/cash";
 import { pct, qty, usd } from "@/lib/format";
 import { StrategyBadge } from "./strategy-badge";
 
@@ -18,6 +19,7 @@ const TYPE_TABS: { value: "all" | AssetType; label: string }[] = [
   { value: "stock", label: "Stocks" },
   { value: "etf", label: "ETFs" },
   { value: "crypto", label: "Crypto" },
+  { value: "cash", label: "Cash" },
 ];
 
 // Per-column cell classes (also hides Type/Price on mobile to avoid horizontal scroll)
@@ -71,8 +73,18 @@ export function HoldingsTable(props: {
             : <span className="text-muted-foreground">—</span>;
         },
       }),
-      col.accessor("quantity", { header: "Qty", cell: (c) => qty(c.getValue()) }),
-      col.accessor("priceUsd", { header: "Price (USD)", cell: (c) => usd(c.getValue()) }),
+      col.accessor("quantity", {
+        header: "Qty",
+        cell: (c) => (isCash(c.row.original)
+          ? <span className="text-muted-foreground">—</span>
+          : qty(c.getValue())),
+      }),
+      col.accessor("priceUsd", {
+        header: "Price (USD)",
+        cell: (c) => (isCash(c.row.original)
+          ? <span className="text-muted-foreground">—</span>
+          : usd(c.getValue())),
+      }),
       col.accessor("valueUsd", { header: "Value (USD)", cell: (c) => usd(c.getValue()) }),
       col.display({
         id: "share",
