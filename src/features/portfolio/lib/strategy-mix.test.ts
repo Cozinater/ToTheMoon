@@ -13,6 +13,17 @@ const holding = (valueUsd: number, strategy?: string): Holding => ({
   ...(strategy ? { strategy } : {}),
 });
 
+const cashLine = (valueUsd: number, strategy?: string): Holding => ({
+  id: crypto.randomUUID(),
+  ticker: "IBKR USD",
+  type: "cash",
+  quantity: valueUsd,
+  priceUsd: 1,
+  valueUsd,
+  asOf: "2026-07-01",
+  ...(strategy ? { strategy } : {}),
+});
+
 const STRATEGIES = ["China", "Turn Around", "Speculative", "Long Term"];
 
 describe("strategyMix", () => {
@@ -56,5 +67,24 @@ describe("strategyMix", () => {
   it("returns nothing when there is no value to split", () => {
     expect(strategyMix([])).toEqual([]);
     expect(strategyMix([holding(0, "China")], STRATEGIES)).toEqual([]);
+  });
+
+  it("excludes cash from the slices and from the denominator", () => {
+    const mix = strategyMix([holding(100, "China"), cashLine(300)], STRATEGIES);
+    expect(mix).toEqual([{ label: "China", valueUsd: 100, share: 1, colorIndex: 0 }]);
+  });
+
+  it("does not collapse cash into Unassigned", () => {
+    const mix = strategyMix([holding(100, "China"), cashLine(300)], STRATEGIES);
+    expect(mix.map((s) => s.label)).not.toContain(UNASSIGNED);
+  });
+
+  it("ignores a strategy that somehow ended up on a cash line", () => {
+    const mix = strategyMix([holding(100, "China"), cashLine(300, "China")], STRATEGIES);
+    expect(mix).toEqual([{ label: "China", valueUsd: 100, share: 1, colorIndex: 0 }]);
+  });
+
+  it("returns nothing for a cash-only portfolio", () => {
+    expect(strategyMix([cashLine(5000)], STRATEGIES)).toEqual([]);
   });
 });
