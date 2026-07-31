@@ -19,6 +19,7 @@ import type { Holding } from "@shared/schema";
 import { HoldingsTable } from "@/features/portfolio/components/holdings-table";
 import { HoldingForm } from "@/features/portfolio/components/holding-form";
 import { StrategyMixBar } from "@/features/portfolio/components/strategy-mix-bar";
+import { splitCash } from "@/features/portfolio/lib/cash";
 import type { FxResponse, QuoteBatch } from "@/features/portfolio/types";
 
 export const portfolioRoute = createRoute({
@@ -47,6 +48,7 @@ function PortfolioPage() {
   if (isError || !draft) return <ErrorState message="Couldn't load your portfolio." onRetry={() => refetch()} />;
 
   const totalUsd = round2(draft.holdings.reduce((acc, h) => acc + h.valueUsd, 0));
+  const { invested } = splitCash(draft.holdings);
 
   const upsert = (holding: Holding, fxRate?: number) => {
     const exists = draft.holdings.some((h) => h.id === holding.id);
@@ -60,11 +62,13 @@ function PortfolioPage() {
   };
 
   async function refreshPrices() {
-    if (!draft || draft.holdings.length === 0 || refreshing) return;
+    if (!draft || invested.length === 0 || refreshing) return;
     setRefreshing(true);
     setNote(null);
     try {
-      const symbols = draft.holdings.map((h) => `${h.ticker}:${h.type}`).join(",");
+      // Cash has no market price — never send it to /api/quote, or it comes back
+      // in `failed` and reads as a broken refresh.
+      const symbols = invested.map((h) => `${h.ticker}:${h.type}`).join(",");
       const [batch, fx] = await Promise.all([
         api<QuoteBatch>(`/api/quote?symbols=${encodeURIComponent(symbols)}`),
         api<FxResponse>("/api/fx"),
@@ -94,7 +98,7 @@ function PortfolioPage() {
         title={usd(totalUsd)}
         action={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={refreshPrices} disabled={draft.holdings.length === 0 || refreshing}>
+            <Button variant="outline" onClick={refreshPrices} disabled={invested.length === 0 || refreshing}>
               <RefreshCw className={refreshing ? "size-4 animate-spin" : "size-4"} /> Refresh prices
             </Button>
             <Button onClick={() => { setEditing(undefined); setFormOpen(true); }}>
@@ -110,7 +114,7 @@ function PortfolioPage() {
         <EmptyState
           icon={ChartPie}
           title="No holdings yet"
-          hint="Add your first stock, ETF, or crypto holding and we'll fetch its latest USD price."
+          hint="Add a stock, ETF or crypto holding and we'll fetch its latest USD price — or record the cash you have ready to deploy."
           action={<Button onClick={() => { setEditing(undefined); setFormOpen(true); }}><Plus className="size-4" /> Add your first holding</Button>}
         />
       ) : (

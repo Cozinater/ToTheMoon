@@ -64,4 +64,31 @@ describe("prefetchQuotes", () => {
     expect(eodCalls).toBe(0);
     expect(fxCalls).toBe(1);
   });
+
+  it("filters cash holdings out before they reach the market client", async () => {
+    const store = new MemoryStore();
+    const cash: Holding = {
+      id: crypto.randomUUID(), ticker: "IBKR", type: "cash",
+      quantity: 500, priceUsd: 1, valueUsd: 500, asOf: "2026-07-01",
+    };
+    await store.putDraft({ ...emptyDraft(), holdings: [holding("AAPL"), cash], updatedAt: "2026-07-01T00:00:00Z" });
+
+    let eodSymbols: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string | URL) => {
+      const u = String(url);
+      if (u.includes("/eod")) {
+        eodSymbols = new URL(u).searchParams.get("symbol")!.split(",");
+        return json(Object.fromEntries(eodSymbols.map((s) => [s, { symbol: s, currency: "USD", datetime: "2026-07-03", close: "10" }])));
+      }
+      if (u.includes("/exchange_rate")) return json({ symbol: "USD/SGD", rate: 1.3, timestamp: 1782115200 });
+      throw new Error(`unexpected fetch: ${u}`);
+    }));
+
+    const market = createMarketClient({ twelveDataKey: "k", cache: new MemoryDayCache() });
+    const result = await prefetchQuotes(store, market, { wait: async () => {} });
+
+    expect(result.resolved).toBe(1); // only the stock counted — cash was never a candidate
+    expect(result.pending).toBe(0);
+    expect(eodSymbols).toEqual(["AAPL"]); // cash never reached quoteBatch / the market client
+  });
 });

@@ -32,15 +32,18 @@ export function CashFields(props: {
   }, [props.open, props.initial]);
 
   const amount = Number(amountStr);
+  // USD cash: one "unit" is one dollar, so quantity, price × quantity and value agree.
+  // Round once here and reuse everywhere below, so the enable condition and the
+  // saved value can never disagree (e.g. 0.004 rounds to 0 and must not be savable).
+  const roundedAmount = round2(amount);
   const trimmed = label.trim();
   const canSave =
     trimmed !== "" && trimmed.length <= LABEL_MAX &&
-    asOf !== "" && Number.isFinite(amount) && amount > 0;
+    asOf !== "" && Number.isFinite(amount) && roundedAmount > 0;
 
   function save() {
     if (!canSave) return;
-    // USD cash: one "unit" is one dollar, so quantity, price × quantity and value agree.
-    const value = round2(amount);
+    const value = roundedAmount;
     props.onSave({
       id: props.initial?.id ?? crypto.randomUUID(),
       ticker: trimmed,
