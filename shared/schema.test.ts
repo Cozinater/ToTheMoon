@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  amendInputSchema, defaultSettings, draftInputSchema, emptyDraft, holdingSchema, settingsSchema,
+  amendInputSchema, defaultSettings, draftInputSchema, emptyDraft, holdingSchema,
+  quotableTypeSchema, settingsSchema,
 } from "./schema.ts";
 
 const entry = (name: string) => ({
@@ -81,5 +82,39 @@ describe("settingsSchema", () => {
   it("rejects blank or over-long entries", () => {
     expect(settingsSchema.safeParse({ strategies: [""] }).success).toBe(false);
     expect(settingsSchema.safeParse({ strategies: ["x".repeat(41)] }).success).toBe(false);
+  });
+});
+
+describe("cash holdings", () => {
+  const cash = () => ({
+    id: crypto.randomUUID(), ticker: "IBKR USD", type: "cash" as const,
+    quantity: 23000, priceUsd: 1, valueUsd: 23000, asOf: "2026-07-01",
+  });
+
+  it("accepts a cash line as an ordinary holding", () => {
+    expect(holdingSchema.safeParse(cash()).success).toBe(true);
+  });
+
+  it("accepts a draft containing cash", () => {
+    const parsed = draftInputSchema.parse({ ...emptyDraft(), holdings: [cash()] });
+    expect(parsed.holdings[0]!.type).toBe("cash");
+  });
+
+  it("still rejects an unknown holding type", () => {
+    expect(holdingSchema.safeParse({ ...cash(), type: "bond" }).success).toBe(false);
+  });
+});
+
+describe("quotableTypeSchema", () => {
+  it("is the asset types a price provider can quote", () => {
+    expect(quotableTypeSchema.options).toEqual(["stock", "etf", "crypto"]);
+  });
+
+  it("rejects cash", () => {
+    expect(quotableTypeSchema.safeParse("cash").success).toBe(false);
+  });
+
+  it.each(["stock", "etf", "crypto"])("accepts %s", (t) => {
+    expect(quotableTypeSchema.safeParse(t).success).toBe(true);
   });
 });

@@ -1,15 +1,15 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
-import type { AssetType } from "@shared/schema";
+import type { QuotableType } from "@shared/schema";
 import type { SearchResponse, SearchResult } from "../types";
 
-const TYPE_LABEL: Record<AssetType, string> = { stock: "Stock", etf: "ETF", crypto: "Crypto" };
-const MANUAL_TYPES: AssetType[] = ["stock", "etf", "crypto"];
+const TYPE_LABEL: Record<QuotableType, string> = { stock: "Stock", etf: "ETF", crypto: "Crypto" };
+const MANUAL_TYPES: QuotableType[] = ["stock", "etf", "crypto"];
 
 type Row =
   | { kind: "result"; result: SearchResult; disabled: boolean }
-  | { kind: "manual"; type: AssetType };
+  | { kind: "manual"; type: QuotableType };
 
 const rowEnabled = (row: Row) => row.kind !== "result" || !row.disabled;
 

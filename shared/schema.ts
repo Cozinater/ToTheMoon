@@ -6,8 +6,15 @@ const isoDate = z.iso.date();       // "YYYY-MM-DD"
 const isoDateTime = z.iso.datetime();
 export const monthSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "expected YYYY-MM");
 
-export const assetTypeSchema = z.enum(["stock", "etf", "crypto"]);
+export const assetTypeSchema = z.enum(["stock", "etf", "crypto", "cash"]);
 export type AssetType = z.infer<typeof assetTypeSchema>;
+
+/**
+ * The asset types a price provider can quote. Cash has no market price, so it must
+ * never reach `/api/quote` or a market client — this is the type that enforces it.
+ */
+export const quotableTypeSchema = assetTypeSchema.exclude(["cash"]);
+export type QuotableType = z.infer<typeof quotableTypeSchema>;
 
 export const holdingSchema = z.object({
   id: z.uuid(),

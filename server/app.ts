@@ -2,8 +2,8 @@ import { Hono, type Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { z } from "zod";
 import {
-  amendInputSchema, assetTypeSchema, closeInputSchema, defaultSettings, draftInputSchema,
-  emptyDraft, settingsSchema, type AssetType, type Snapshot,
+  amendInputSchema, closeInputSchema, defaultSettings, draftInputSchema,
+  emptyDraft, quotableTypeSchema, settingsSchema, type QuotableType, type Snapshot,
 } from "../shared/schema.ts";
 import { computeTotals } from "../shared/totals.ts";
 import {
@@ -165,10 +165,10 @@ export function createApp({ store, market, originSecret, auth }: AppDeps) {
   api.get("/quote", async (c) => {
     const { symbol, type, symbols } = c.req.query();
     if (symbols) {
-      const reqs: { symbol: string; type: AssetType }[] = [];
+      const reqs: { symbol: string; type: QuotableType }[] = [];
       for (const pair of symbols.split(",")) {
         const [s, t] = pair.split(":");
-        const parsedType = assetTypeSchema.safeParse(t);
+        const parsedType = quotableTypeSchema.safeParse(t);
         if (!s || !parsedType.success) {
           return c.json({ error: "VALIDATION", message: `Bad symbols entry '${pair}'` }, 400);
         }
@@ -176,7 +176,7 @@ export function createApp({ store, market, originSecret, auth }: AppDeps) {
       }
       return c.json(await market.quoteBatch(reqs));
     }
-    const parsedType = assetTypeSchema.safeParse(type);
+    const parsedType = quotableTypeSchema.safeParse(type);
     if (!symbol || !parsedType.success) {
       return c.json({ error: "VALIDATION", message: "symbol and type=stock|etf|crypto required" }, 400);
     }

@@ -12,7 +12,8 @@ import { useSettings } from "@/hooks/use-settings";
 import { api, ApiError } from "@/lib/api";
 import { qty, usd } from "@/lib/format";
 import { round2 } from "@shared/totals";
-import type { AssetType, Holding } from "@shared/schema";
+import type { Holding, QuotableType } from "@shared/schema";
+import { isInstrument, type InstrumentHolding } from "../lib/cash";
 import { InstrumentCombobox } from "./instrument-combobox";
 import type { FxResponse, Quote, SearchResult } from "../types";
 
@@ -22,7 +23,7 @@ type QuoteState =
   | { status: "ok"; quote: Quote; fxRate?: number }
   | { status: "error"; message: string };
 
-const fromHolding = (h: Holding): SearchResult =>
+const fromHolding = (h: InstrumentHolding): SearchResult =>
   ({ symbol: h.ticker, name: h.ticker, type: h.type, currency: "USD" });
 
 export function HoldingForm(props: {
@@ -42,19 +43,20 @@ export function HoldingForm(props: {
 
   useEffect(() => {
     if (!props.open) return;
-    setSelected(props.initial ? fromHolding(props.initial) : null);
+    const instrument = props.initial && isInstrument(props.initial) ? props.initial : undefined;
+    setSelected(instrument ? fromHolding(instrument) : null);
     setQuantityStr(props.initial ? String(props.initial.quantity) : "");
     setAsOf(props.initial?.asOf ?? "");
     setStrategy(props.initial?.strategy ?? "");
     initialisedRef.current = Boolean(props.initial?.strategy);
-    if (props.initial) {
+    if (instrument) {
       setQuote({
         status: "ok",
         quote: {
-          symbol: props.initial.ticker,
-          type: props.initial.type,
-          priceUsd: props.initial.priceUsd,
-          asOf: props.initial.asOf,
+          symbol: instrument.ticker,
+          type: instrument.type,
+          priceUsd: instrument.priceUsd,
+          asOf: instrument.asOf,
         },
         fxRate: undefined,
       });
@@ -69,7 +71,7 @@ export function HoldingForm(props: {
     if (def) { setStrategy(def); initialisedRef.current = true; }
   }, [props.open, settings]);
 
-  async function fetchQuote(symbol: string, type: AssetType) {
+  async function fetchQuote(symbol: string, type: QuotableType) {
     setQuote({ status: "loading" });
     try {
       const [q, fx] = await Promise.all([

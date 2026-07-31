@@ -1,3 +1,4 @@
+import type { Holding, QuotableType } from "../shared/schema.ts";
 import { DynamoDayCache } from "./dynamo-cache.ts";
 import { DynamoStore } from "./dynamo-store.ts";
 import { createMarketClient, type MarketClient } from "./market.ts";
@@ -6,6 +7,11 @@ import type { SnapshotStore } from "./store.ts";
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export type PrefetchResult = { rounds: number; resolved: number; pending: number };
+
+/** Cash has no market price — never hand it to `quoteBatch`. */
+function isQuotable(h: Holding): h is Holding & { type: QuotableType } {
+  return h.type !== "cash";
+}
 
 /**
  * Warm the day cache for every holding ahead of the user opening the app.
@@ -27,7 +33,9 @@ export async function prefetchQuotes(
   const maxRounds = opts.maxRounds ?? 30;
 
   const draft = await store.getDraft();
-  const all = (draft?.holdings ?? []).map((h) => ({ symbol: h.ticker, type: h.type }));
+  const all = (draft?.holdings ?? [])
+    .filter(isQuotable)
+    .map((h) => ({ symbol: h.ticker, type: h.type }));
 
   let remaining = all;
   let rounds = 0;

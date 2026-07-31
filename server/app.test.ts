@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { emptyDraft, type AssetType, type Draft } from "../shared/schema.ts";
+import { emptyDraft, type QuotableType, type Draft } from "../shared/schema.ts";
 import { createApp } from "./app.ts";
 import { MarketError, type MarketClient } from "./market.ts";
 import { MemoryStore } from "./store.ts";
@@ -9,7 +9,7 @@ const json = (res: Response): Promise<any> => res.json();
 
 const stubMarket = (over: Partial<MarketClient> = {}): MarketClient => ({
   quote: vi.fn(async (symbol: string, type) => ({ symbol, type, priceUsd: 100, asOf: "2026-07-01" })),
-  quoteBatch: vi.fn(async (reqs: Array<{ symbol: string; type: AssetType }>) => ({
+  quoteBatch: vi.fn(async (reqs: Array<{ symbol: string; type: QuotableType }>) => ({
     quotes: reqs.map((r) => ({ symbol: r.symbol, type: r.type, priceUsd: 100, asOf: "2026-07-01" })),
     failed: [],
     rateLimited: [],
@@ -164,6 +164,12 @@ describe("quote / fx / reset", () => {
 
   it("bad type param → 400", async () => {
     expect((await makeApp().request("/api/quote?symbol=AAPL&type=bond")).status).toBe(400);
+  });
+
+  it("rejects cash as a quotable type", async () => {
+    const app = makeApp();
+    expect((await app.request("/api/quote?symbol=IBKR%20USD&type=cash")).status).toBe(400);
+    expect((await app.request("/api/quote?symbols=VOO:etf,IBKR:cash")).status).toBe(400);
   });
 
   it("reset wipes everything", async () => {

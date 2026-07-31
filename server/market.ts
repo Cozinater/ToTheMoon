@@ -1,4 +1,4 @@
-import type { AssetType } from "../shared/schema.ts";
+import type { QuotableType } from "../shared/schema.ts";
 import { cgQuotes, cgSearch } from "./coingecko.ts";
 import { MemoryDayCache, type DayCache } from "./quote-cache.ts";
 import { tdEodBatch, tdFx, tdSymbolSearch } from "./twelve-data.ts";
@@ -15,7 +15,7 @@ export const SEARCH_LIMIT = 12;
  */
 export const EQUITY_PER_MIN_CAP = 7;
 
-const quoteCacheKey = (symbol: string, type: AssetType) => `Q:${type}:${symbol.toUpperCase()}`;
+const quoteCacheKey = (symbol: string, type: QuotableType) => `Q:${type}:${symbol.toUpperCase()}`;
 const FX_CACHE_KEY = "FX:USD/SGD";
 
 /** Today's date (UTC) as YYYY-MM-DD — the single as-of stamp shared by every quote provider. */
@@ -23,10 +23,10 @@ export function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export type Quote = { symbol: string; type: AssetType; priceUsd: number; asOf: string };
+export type Quote = { symbol: string; type: QuotableType; priceUsd: number; asOf: string };
 export type Fx = { pair: "USD/SGD"; rate: number; asOf: string };
 export type SearchResult = {
-  symbol: string; name: string; type: AssetType; exchange?: string; currency: string;
+  symbol: string; name: string; type: QuotableType; exchange?: string; currency: string;
 };
 
 export class MarketError extends Error {
@@ -46,8 +46,8 @@ function interleave<T>(a: T[], b: T[]): T[] {
 export type QuoteBatchResult = { quotes: Quote[]; failed: string[]; rateLimited: string[] };
 
 export interface MarketClient {
-  quote(symbol: string, type: AssetType): Promise<Quote>;
-  quoteBatch(reqs: { symbol: string; type: AssetType }[]): Promise<QuoteBatchResult>;
+  quote(symbol: string, type: QuotableType): Promise<Quote>;
+  quoteBatch(reqs: { symbol: string; type: QuotableType }[]): Promise<QuoteBatchResult>;
   fx(): Promise<Fx>;
   search(q: string): Promise<SearchResult[]>;
 }
@@ -61,7 +61,7 @@ export function createMarketClient(
    * cap — or a rate-limit response — as `rateLimited` (retryable) rather than failing.
    */
   async function resolve(
-    reqs: { symbol: string; type: AssetType }[],
+    reqs: { symbol: string; type: QuotableType }[],
     day: string,
     cap: number,
     fetchFresh: (symbols: string[]) => Promise<Map<string, { priceUsd: number; asOf: string }>>,
@@ -72,7 +72,7 @@ export function createMarketClient(
     if (reqs.length === 0) return { quotes, failed, rateLimited };
 
     const cached = await cache.get<Quote>(reqs.map((r) => quoteCacheKey(r.symbol, r.type)), day);
-    const uncached: { symbol: string; type: AssetType }[] = [];
+    const uncached: { symbol: string; type: QuotableType }[] = [];
     for (const r of reqs) {
       const hit = cached.get(quoteCacheKey(r.symbol, r.type));
       if (hit) quotes.push(hit);
@@ -105,7 +105,7 @@ export function createMarketClient(
     return { quotes, failed, rateLimited };
   }
 
-  async function quoteBatch(reqs: { symbol: string; type: AssetType }[]): Promise<QuoteBatchResult> {
+  async function quoteBatch(reqs: { symbol: string; type: QuotableType }[]): Promise<QuoteBatchResult> {
     const day = todayIso();
     // Crypto (CoinGecko) is a separate provider with its own limits, so it is resolved
     // independently — an equity rate-limit no longer wipes out the crypto prices too.
