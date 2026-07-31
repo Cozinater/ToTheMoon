@@ -133,10 +133,6 @@ export default defineConfig([
         varsIgnorePattern: '^_',
         caughtErrorsIgnorePattern: '^_',
       }],
-      // Seeding form state from props in an effect when a dialog opens is this repo's
-      // idiom across entry-form, holding-form, amend-dialog and strategies-card. The
-      // settings-driven cases can't be lazy initialisers — the data arrives async.
-      'react-hooks/set-state-in-effect': 'off',
     },
   },
   {
@@ -147,6 +143,18 @@ export default defineConfig([
     files: ['src/routes/**/*.tsx', 'src/components/ui/**/*.tsx'],
     rules: {
       'react-refresh/only-export-components': 'off',
+    },
+  },
+  {
+    // Seeding form state from props in an effect when a dialog opens is the form
+    // component idiom in this repo (entry-form, holding-form, amend-dialog,
+    // strategies-card, and the cash-related form additions in later tasks). The
+    // settings-driven cases can't be lazy initialisers — the data arrives async.
+    // Use a directory glob rather than a file list so future form components can be
+    // added without editing this config.
+    files: ['src/features/**/components/**/*.tsx'],
+    rules: {
+      'react-hooks/set-state-in-effect': 'off',
     },
   },
 ])
