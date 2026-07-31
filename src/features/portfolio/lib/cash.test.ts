@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Holding } from "@shared/schema";
+import type { Holding, QuotableType } from "@shared/schema";
 import { isCash, isInstrument, splitCash } from "./cash";
 
 const stock = (valueUsd: number): Holding => ({
@@ -43,6 +43,17 @@ describe("splitCash", () => {
     expect(split.cash.map((h) => h.valueUsd)).toEqual([200]);
     expect(split.investedUsd).toBe(800);
     expect(split.cashUsd).toBe(200);
+  });
+
+  it("keeps cash off the invested side", () => {
+    const split = splitCash([cashLine(200), stock(700), cashLine(50)]);
+    expect(split.invested.some(isCash)).toBe(false);
+    expect(split.invested.every(isInstrument)).toBe(true);
+    // The compile-time half of the same guarantee: `invested` is InstrumentHolding[],
+    // so the `${ticker}:${type}` symbols the Refresh button builds from it can never
+    // carry a cash line to /api/quote. This annotation is what `tsc` checks.
+    const quotableTypes: QuotableType[] = split.invested.map((h) => h.type);
+    expect(quotableTypes).toEqual(["stock"]);
   });
 
   it("preserves input order within each side", () => {

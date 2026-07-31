@@ -62,10 +62,21 @@ function PortfolioPage() {
   };
 
   async function refreshPrices() {
-    if (!draft || invested.length === 0 || refreshing) return;
+    // Gated on the whole portfolio, not on `invested`: refresh is also the only place
+    // that writes `fxRate`, so a cash-only portfolio must still be able to run it —
+    // otherwise the dashboard's "fetch a price on Portfolio" hint points at a dead
+    // button and net worth stays stuck at a 1.0000 USD/SGD rate.
+    if (!draft || draft.holdings.length === 0 || refreshing) return;
     setRefreshing(true);
     setNote(null);
     try {
+      if (invested.length === 0) {
+        // Nothing quotable: skip /api/quote entirely rather than sending an empty
+        // `symbols=`, which falls through to the single-quote branch and 400s.
+        const fx = await api<FxResponse>("/api/fx");
+        save.mutate({ ...draft, fxRate: fx.rate });
+        return;
+      }
       // Cash has no market price — never send it to /api/quote, or it comes back
       // in `failed` and reads as a broken refresh.
       const symbols = invested.map((h) => `${h.ticker}:${h.type}`).join(",");
@@ -98,7 +109,7 @@ function PortfolioPage() {
         title={usd(totalUsd)}
         action={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={refreshPrices} disabled={invested.length === 0 || refreshing}>
+            <Button variant="outline" onClick={refreshPrices} disabled={draft.holdings.length === 0 || refreshing}>
               <RefreshCw className={refreshing ? "size-4 animate-spin" : "size-4"} /> Refresh prices
             </Button>
             <Button onClick={() => { setEditing(undefined); setFormOpen(true); }}>

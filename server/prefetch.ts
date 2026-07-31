@@ -1,4 +1,4 @@
-import type { Holding, QuotableType } from "../shared/schema.ts";
+import { quotableTypeSchema, type Holding, type QuotableType } from "../shared/schema.ts";
 import { DynamoDayCache } from "./dynamo-cache.ts";
 import { DynamoStore } from "./dynamo-store.ts";
 import { createMarketClient, type MarketClient } from "./market.ts";
@@ -12,10 +12,12 @@ export type PrefetchResult = { rounds: number; resolved: number; pending: number
  * Cash has no market price — never hand it to `quoteBatch`. Identical predicate to
  * the client-side `isInstrument` in `src/features/portfolio/lib/cash.ts`; kept as a
  * separate copy (not hoisted to `shared/`) because the server cannot import from
- * `src/`, but named the same so the duplication reads as intentional.
+ * `src/`, but named the same so the duplication reads as intentional. Both copies
+ * ask `quotableTypeSchema` rather than testing for `"cash"`, so the two tiers cannot
+ * drift apart when a new AssetType lands.
  */
 function isInstrument(h: Holding): h is Holding & { type: QuotableType } {
-  return h.type !== "cash";
+  return quotableTypeSchema.safeParse(h.type).success;
 }
 
 /**

@@ -16,9 +16,15 @@ const LABEL_CLASS = "text-[11px] font-medium uppercase tracking-[0.14em]";
  *
  * The two denominators differ on purpose — "of my invested money 41% is Long Term,
  * and 17.9% of the portfolio is dry powder" — so the chips are not meant to sum to
- * 100% across the divider. The cash chip stays on the neutral tint (never a
- * text-chart-* token) and sits behind a heavier divider so it cannot be misread as
- * one of the strategies.
+ * 100% across the divider, and the count reads "N invested" rather than "N holdings"
+ * to keep it honest about which side of the split it counts.
+ *
+ * The cash chip is kept off the strategy palette (never a text-chart-* token) but is
+ * brighter than the muted "Unassigned" tint, which is the chip it would otherwise be
+ * confused with — those two sit side by side and are measured against different
+ * denominators. Its leading divider is a drawn rule rather than a glyph, and unlike
+ * the slice dividers it renders at every width: on a narrow screen it is the only
+ * thing separating the two.
  */
 export function StrategyMixBar({ holdings }: { holdings: Holding[] }) {
   const { data: settings } = useSettings();
@@ -28,7 +34,7 @@ export function StrategyMixBar({ holdings }: { holdings: Holding[] }) {
 
   return (
     <div className="-mt-4 mb-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground sm:gap-x-3">
-      <span>{invested.length} holdings</span>
+      <span>{invested.length} invested</span>
       {mix.map((slice) => (
         <span key={slice.label} className="flex items-center gap-1.5 sm:gap-2">
           {/* Dividers only once the row fits on one line — when it wraps they'd strand a pipe at each line start. */}
@@ -39,9 +45,11 @@ export function StrategyMixBar({ holdings }: { holdings: Holding[] }) {
       ))}
       {cashUsd > 0 && totalUsd > 0 && (
         <span className="flex items-center gap-1.5 sm:gap-2">
-          {/* Heavier divider: cash is outside the strategy set, not another slice of it. */}
-          <span aria-hidden className="hidden text-border sm:inline">‖</span>
-          <span className={cn(LABEL_CLASS, "text-muted-foreground")}>Cash</span>
+          {/* A drawn rule, not a glyph, and shown at every width: cash is outside the
+              strategy set, and on mobile this is the only thing keeping it apart from
+              an equally muted "Unassigned" chip measured on a different denominator. */}
+          <span aria-hidden className="mx-1 inline-block h-3 w-px shrink-0 bg-border" />
+          <span className={cn(LABEL_CLASS, "text-foreground/70")}>Cash</span>
           <span className="tabular-nums text-foreground">{pct(cashUsd / totalUsd)}</span>
         </span>
       )}

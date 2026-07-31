@@ -1,5 +1,5 @@
 import type { Holding } from "@shared/schema";
-import { isCash } from "./cash";
+import { isInstrument } from "./cash";
 
 export const UNASSIGNED = "Unassigned";
 
@@ -23,7 +23,7 @@ export type StrategySlice = {
  * `splitCash` and `StrategyMixBar`.
  */
 export function strategyMix(holdings: Holding[], strategies: string[] = []): StrategySlice[] {
-  const invested = holdings.filter((h) => !isCash(h));
+  const invested = holdings.filter(isInstrument);
   const total = invested.reduce((acc, h) => acc + h.valueUsd, 0);
   if (total <= 0) return [];
 

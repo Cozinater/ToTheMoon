@@ -42,8 +42,8 @@ export default defineConfig([
   {
     // Seeding form state from props in an effect when a dialog opens is the form
     // component idiom in this repo (entry-form, holding-form, amend-dialog,
-    // strategies-card, and the cash-related form additions in later tasks). The
-    // settings-driven cases can't be lazy initialisers — the data arrives async.
+    // strategies-card). The settings-driven cases can't be lazy initialisers — the
+    // data arrives async.
     // Use a directory glob rather than a file list so future form components can be
     // added without editing this config.
     files: ['src/features/**/components/**/*.tsx'],

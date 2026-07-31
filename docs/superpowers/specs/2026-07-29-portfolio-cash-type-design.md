@@ -99,21 +99,27 @@ Both sums use `round2` from `shared/totals.ts`, matching how `computeTotals` rou
 ```
 PORTFOLIO (USD)
 $128,400.00
-7 holdings | LONG TERM 41% | CHINA 27% | SPEC 14% ‖ CASH 17.9%
+7 invested | LONG TERM 41% | CHINA 27% | SPEC 14% │ CASH 17.9%
 ```
 
-- The holdings count becomes **invested-only** (cash is represented by its own chip).
+- The count is **invested-only** (cash is represented by its own chip), so it is labelled
+  `invested`, not `holdings`. The two whole-portfolio counts elsewhere — the dashboard draft card
+  and Settings → Close month — keep saying `holdings`, because they really do count every row.
 - After the strategy slices, render a cash chip when `cashUsd > 0`: label `CASH`, value
   `cashUsd / (investedUsd + cashUsd)`. It reuses the slice markup (same uppercase tracked label,
   same `tabular-nums text-foreground` value) but is styled outside the strategy palette:
-  - label class `text-muted-foreground` — i.e. the `NEUTRAL` tint from `strategy-tint.ts`, never
-    a `text-chart-*` token, so it can't be mistaken for a strategy;
-  - its leading divider is `‖` instead of the slices' `|`, keeping the existing
-    `hidden sm:inline` behaviour (dividers only appear once the row fits on one line).
+  - label class `text-foreground/70` — off the strategy palette (never a `text-chart-*` token),
+    but deliberately brighter than the `NEUTRAL` `text-muted-foreground` tint that
+    `strategy-tint.ts` gives the "Unassigned" slice, since that chip sits right next to it and is
+    measured on a different denominator;
+  - its leading divider is a drawn rule (`h-3 w-px bg-border`), not a text glyph, and it renders
+    at **all** widths rather than the slices' `hidden sm:inline` — below `sm` it is the only thing
+    keeping `UNASSIGNED 20%` and `CASH 17%` apart. The slice dividers keep their `|` behaviour
+    (dividers only appear once the row fits on one line).
 - The cash chip renders even when `mix` is empty, so a cash-only portfolio still shows it.
 - The mixed denominators are intentional: *"of my invested money 41% is Long Term, and 17.9% of
   the portfolio is dry powder."* The chips are not meant to sum to 100% across the divider.
-- Cash-only portfolio: `strategyMix` returns `[]`, bar reads `0 holdings ‖ CASH 100%`.
+- Cash-only portfolio: `strategyMix` returns `[]`, bar reads `0 invested │ CASH 100%`.
 
 ### 5. Holdings table — `src/features/portfolio/components/holdings-table.tsx`
 
