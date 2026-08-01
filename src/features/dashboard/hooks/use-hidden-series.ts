@@ -29,11 +29,9 @@ const save = (hidden: SeriesKey[]) => {
 export function useHiddenSeries(): [SeriesKey[], (key: SeriesKey) => void] {
   const [hidden, setHidden] = useState<SeriesKey[]>(load);
   const toggle = (key: SeriesKey) => {
-    setHidden((current) => {
-      const next = toggleSeries(current, key);
-      save(next);
-      return next;
-    });
+    const next = toggleSeries(hidden, key);
+    setHidden(next);
+    save(next);
   };
   return [hidden, toggle];
 }
