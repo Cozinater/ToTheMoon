@@ -5,15 +5,7 @@ import { compactSgd, sgd } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ChartPoint } from "../hooks/use-dashboard-data";
 import { filterChartPoints, type ChartRange, type ChartRangePreset } from "../lib/chart-range";
-
-const SERIES = [
-  { key: "portfolio", label: "Portfolio", color: "var(--chart-1)", stack: "pos" },
-  { key: "savings", label: "Savings", color: "var(--chart-2)", stack: "pos" },
-  { key: "cpf", label: "CPF", color: "var(--chart-3)", stack: "pos" },
-  { key: "property", label: "Property", color: "var(--chart-4)", stack: "pos" },
-  { key: "creditCards", label: "Credit Cards", color: "var(--chart-5)", stack: "neg" },
-  { key: "loans", label: "Loans", color: "var(--chart-6)", stack: "neg" },
-] as const;
+import { SERIES } from "../lib/chart-series";
 
 const PRESETS: { preset: ChartRangePreset; label: string }[] = [
   { preset: "6m", label: "6M" },
