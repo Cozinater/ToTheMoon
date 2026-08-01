@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import type { ChartPoint } from "../hooks/use-dashboard-data";
 import { useHiddenSeries } from "../hooks/use-hidden-series";
 import { filterChartPoints, type ChartRange, type ChartRangePreset } from "../lib/chart-range";
-import { SERIES } from "../lib/chart-series";
+import { SERIES, visibleTotal, type SeriesKey } from "../lib/chart-series";
 import { ChartLegend } from "./chart-legend";
 
 const PRESETS: { preset: ChartRangePreset; label: string }[] = [
@@ -23,8 +23,15 @@ const currentMonth = () => {
 
 type TooltipEntry = { name?: string; value?: number; color?: string; payload?: ChartPoint };
 
-function ChartTooltip(props: { active?: boolean; label?: string; payload?: TooltipEntry[] }) {
+function ChartTooltip(props: {
+  active?: boolean;
+  label?: string;
+  payload?: TooltipEntry[];
+  hidden?: SeriesKey[];
+}) {
   if (!props.active || !props.payload?.length) return null;
+  const point = props.payload[0]?.payload;
+  const hidden = props.hidden ?? [];
   return (
     <div className="rounded-xl border border-border bg-popover px-3 py-2 text-xs shadow-xl">
       <div className="mb-1 font-medium">{props.label}</div>
@@ -35,8 +42,8 @@ function ChartTooltip(props: { active?: boolean; label?: string; payload?: Toolt
         </div>
       ))}
       <div className="mt-1 flex justify-between gap-6 border-t border-border pt-1 font-medium">
-        <span>Net worth</span>
-        <span>{sgd(props.payload[0]?.payload?.netWorth ?? 0)}</span>
+        <span>{hidden.length > 0 ? "Visible total" : "Net worth"}</span>
+        <span>{sgd(point ? visibleTotal(point, hidden) : 0)}</span>
       </div>
     </div>
   );
@@ -131,7 +138,7 @@ export function NetWorthChart({ points }: { points: ChartPoint[] }) {
               <CartesianGrid stroke="rgb(244 236 220 / 0.07)" strokeDasharray="4 6" vertical={false} />
               <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "#9db2a4", fontSize: 12 }} />
               <YAxis tickFormatter={compactSgd} tickLine={false} axisLine={false} width={72} tick={{ fill: "#9db2a4", fontSize: 12 }} />
-              <Tooltip content={<ChartTooltip />} />
+              <Tooltip content={<ChartTooltip hidden={hidden} />} />
               {visible.map((s) => (
                 <Area key={s.key} type="monotone" dataKey={s.key} stackId={s.stack} name={s.label}
                   stroke={s.color} strokeWidth={2} fill={`url(#fill-${s.key})`} />
