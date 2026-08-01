@@ -4,8 +4,10 @@ import { MonthPicker } from "@/components/month-picker";
 import { compactSgd, sgd } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ChartPoint } from "../hooks/use-dashboard-data";
+import { useHiddenSeries } from "../hooks/use-hidden-series";
 import { filterChartPoints, type ChartRange, type ChartRangePreset } from "../lib/chart-range";
 import { SERIES } from "../lib/chart-series";
+import { ChartLegend } from "./chart-legend";
 
 const PRESETS: { preset: ChartRangePreset; label: string }[] = [
   { preset: "6m", label: "6M" },
@@ -93,8 +95,10 @@ function CustomRangeInputs(props: {
 
 export function NetWorthChart({ points }: { points: ChartPoint[] }) {
   const [range, setRange] = useState<ChartRange>({ preset: "all" });
+  const [hidden, toggleHidden] = useHiddenSeries();
   const filtered = filterChartPoints(points, range, currentMonth());
   const snapshotCount = filtered.filter((p) => p.month !== null).length;
+  const visible = SERIES.filter((s) => !hidden.includes(s.key));
 
   return (
     <div className="surface rounded-3xl p-6">
@@ -109,15 +113,15 @@ export function NetWorthChart({ points }: { points: ChartPoint[] }) {
       </div>
       {!("preset" in range) && <CustomRangeInputs range={range} onChange={setRange} />}
       <div className="h-80 md:h-96">
-        {filtered.length === 0 ? (
+        {filtered.length === 0 || visible.length === 0 ? (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            No snapshots in this range
+            {filtered.length === 0 ? "No snapshots in this range" : "No categories selected"}
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={filtered} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
               <defs>
-                {SERIES.map((s) => (
+                {visible.map((s) => (
                   <linearGradient key={s.key} id={`fill-${s.key}`} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor={s.color} stopOpacity={0.5} />
                     <stop offset="100%" stopColor={s.color} stopOpacity={0.06} />
@@ -128,7 +132,7 @@ export function NetWorthChart({ points }: { points: ChartPoint[] }) {
               <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "#9db2a4", fontSize: 12 }} />
               <YAxis tickFormatter={compactSgd} tickLine={false} axisLine={false} width={72} tick={{ fill: "#9db2a4", fontSize: 12 }} />
               <Tooltip content={<ChartTooltip />} />
-              {SERIES.map((s) => (
+              {visible.map((s) => (
                 <Area key={s.key} type="monotone" dataKey={s.key} stackId={s.stack} name={s.label}
                   stroke={s.color} strokeWidth={2} fill={`url(#fill-${s.key})`} />
               ))}
@@ -136,14 +140,7 @@ export function NetWorthChart({ points }: { points: ChartPoint[] }) {
           </ResponsiveContainer>
         )}
       </div>
-      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        {SERIES.map((s) => (
-          <span key={s.key} className="flex items-center gap-1.5">
-            <span className="size-2 rounded-full" style={{ background: s.color }} />
-            {s.label}
-          </span>
-        ))}
-      </div>
+      <ChartLegend hidden={hidden} onToggle={toggleHidden} />
     </div>
   );
 }
