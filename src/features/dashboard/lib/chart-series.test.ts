@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import type { Entry, Holding } from "@shared/schema";
+import { computeTotals } from "@shared/totals";
 import {
   parseHiddenSeries,
   serializeHiddenSeries,
@@ -95,5 +97,59 @@ describe("visibleTotal", () => {
 
   it("is zero when everything is hidden", () => {
     expect(visibleTotal(point, ["portfolio", "savings", "cpf", "property", "creditCards", "loans"])).toBe(0);
+  });
+});
+
+describe("visibleTotal vs computeTotals", () => {
+  // Pins the invariant the tooltip footer relies on: visibleTotal(point, []) is a
+  // recomputed sum over SERIES, not a read of Totals.netWorthSgd. The two only agree
+  // because SERIES enumerates exactly the six terms computeTotals folds into
+  // netWorthSgd. If a seventh component were ever added to netWorthSgd without a
+  // matching SERIES row (and ChartPoint field), this test — not the tooltip — would
+  // be the thing that notices the drift.
+  const entry = (name: string, balanceSgd: number): Entry => ({
+    id: crypto.randomUUID(),
+    name,
+    balanceSgd,
+    asOf: "2026-07-01",
+  });
+
+  const holding = (valueUsd: number): Holding => ({
+    id: crypto.randomUUID(),
+    ticker: "AAA",
+    type: "stock",
+    quantity: 1,
+    priceUsd: valueUsd,
+    valueUsd,
+    asOf: "2026-07-01",
+  });
+
+  it("matches computeTotals' netWorthSgd for a fully populated portfolio", () => {
+    const fxRate = 1.35;
+    const doc = {
+      holdings: [holding(1_000)],
+      assets: {
+        bankSavings: [entry("Savings", 20_000)],
+        cpf: [entry("CPF", 30_000)],
+        property: [entry("Condo", 500_000)],
+      },
+      liabilities: {
+        creditCards: [entry("Card", 4_000)],
+        loans: [entry("Mortgage", 300_000)],
+      },
+    };
+    const totals = computeTotals(doc, fxRate);
+
+    // Mirrors toPoint in use-dashboard-data.ts: creditCards and loans are negated.
+    const point = {
+      portfolio: totals.portfolioSgd,
+      savings: totals.savingsSgd,
+      cpf: totals.cpfSgd,
+      property: totals.propertySgd,
+      creditCards: -totals.creditCardsSgd,
+      loans: -totals.loansSgd,
+    };
+
+    expect(visibleTotal(point, [])).toBe(totals.netWorthSgd);
   });
 });
