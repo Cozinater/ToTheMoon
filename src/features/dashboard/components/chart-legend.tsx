@@ -11,7 +11,11 @@ export function ChartLegend({
   onToggle: (key: SeriesKey) => void;
 }) {
   return (
-    <div className="mt-3 flex flex-wrap gap-x-1 gap-y-1 text-xs text-muted-foreground">
+    <div
+      role="group"
+      aria-label="Chart categories"
+      className="mt-3 flex flex-wrap gap-x-1 gap-y-1 text-xs text-muted-foreground"
+    >
       {SERIES.map((s) => {
         const visible = !hidden.includes(s.key);
         return (

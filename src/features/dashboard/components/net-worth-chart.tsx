@@ -121,7 +121,7 @@ export function NetWorthChart({ points }: { points: ChartPoint[] }) {
       {!("preset" in range) && <CustomRangeInputs range={range} onChange={setRange} />}
       <div className="h-80 md:h-96">
         {filtered.length === 0 || visible.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+          <div role="status" className="flex h-full items-center justify-center text-sm text-muted-foreground">
             {filtered.length === 0 ? "No snapshots in this range" : "No categories selected"}
           </div>
         ) : (
