@@ -9,19 +9,34 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { api, ApiError } from "@/lib/api";
-import { monthLabel, sgd } from "@/lib/format";
+import { dateLabel, monthLabel, sgd } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { useDraft } from "@/hooks/use-draft";
-import { useCloseMonth } from "@/hooks/use-snapshots";
+import { useCloseMonth, useSnapshots } from "@/hooks/use-snapshots";
 import { computeTotals } from "@shared/totals";
+import { closeMonthOptions, defaultCloseMonth, monthOf } from "../lib/close-month";
 
 export function CloseMonthCard() {
   const { data: draft } = useDraft();
+  const { data: snapshots } = useSnapshots();
   const close = useCloseMonth();
   const [snapshotDate, setSnapshotDate] = useState("");
+  const [month, setMonth] = useState("");
   const [fxStr, setFxStr] = useState("");
   const [fxLoading, setFxLoading] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [note, setNote] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+
+  const closedMonths = snapshots?.map((s) => s.month) ?? [];
+  const monthClosed = month !== "" && closedMonths.includes(month);
+  const canClose = snapshotDate !== "" && month !== "" && !monthClosed && !close.isPending;
+
+  // Picking a date resets the month to the sensible default; the pills below let
+  // the user override it.
+  function pickDate(v: string) {
+    setSnapshotDate(v);
+    setMonth(v ? defaultCloseMonth(v, closedMonths) : "");
+  }
 
   const fxNum = Number(fxStr);
   const fxValid = fxStr !== "" && Number.isFinite(fxNum) && fxNum > 0;
@@ -51,11 +66,12 @@ export function CloseMonthCard() {
   function doClose() {
     setNote(null);
     close.mutate(
-      { snapshotDate, fxRate: fxValid ? fxNum : undefined },
+      { snapshotDate, month, fxRate: fxValid ? fxNum : undefined },
       {
         onSuccess: (snap) => {
           setNote({ kind: "ok", text: `${monthLabel(snap.month)} locked at USD/SGD ${snap.fxRate.toFixed(4)} — view it in History.` });
           setSnapshotDate("");
+          setMonth("");
           setFxStr("");
         },
         onError: (err) => setNote({ kind: "err", text: err.message }),
@@ -90,7 +106,7 @@ export function CloseMonthCard() {
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="close-date">Snapshot date</Label>
-          <DatePicker id="close-date" value={snapshotDate} onChange={setSnapshotDate} />
+          <DatePicker id="close-date" value={snapshotDate} onChange={pickDate} />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="close-fx">USD/SGD rate</Label>
@@ -104,13 +120,50 @@ export function CloseMonthCard() {
         </div>
       </div>
 
+      {snapshotDate !== "" && (
+        <div className="mt-3 grid gap-1.5">
+          <Label id="close-month-label">Belongs to</Label>
+          <div role="group" aria-labelledby="close-month-label" className="flex flex-wrap items-center gap-1">
+            {closeMonthOptions(snapshotDate).map((m) => {
+              const closed = closedMonths.includes(m);
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMonth(m)}
+                  aria-pressed={month === m}
+                  disabled={closed}
+                  title={closed ? `${monthLabel(m)} is already closed` : undefined}
+                  className={cn(
+                    "rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                    "disabled:cursor-not-allowed disabled:line-through disabled:opacity-40",
+                    month === m
+                      ? "bg-secondary text-secondary-foreground"
+                      : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
+                  )}
+                >
+                  {monthLabel(m)}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {monthClosed
+              ? `${monthLabel(month)} is already closed — amend it from History instead.`
+              : month !== monthOf(snapshotDate)
+                ? `Filed as ${monthLabel(month)}, even though it's dated ${dateLabel(snapshotDate)}.`
+                : "A snapshot taken on the 1st can be filed as the month that just ended."}
+          </p>
+        </div>
+      )}
+
       {note && (
         <p className={note.kind === "ok" ? "mt-3 text-sm text-positive" : "mt-3 text-sm text-negative"}>
           {note.text}
         </p>
       )}
 
-      <Button className="mt-5" disabled={snapshotDate === "" || close.isPending} onClick={() => setConfirmOpen(true)}>
+      <Button className="mt-5" disabled={!canClose} onClick={() => setConfirmOpen(true)}>
         <Lock className="size-4" /> {close.isPending ? "Closing…" : "Close month and snapshot"}
       </Button>
 
@@ -118,9 +171,10 @@ export function CloseMonthCard() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Close {snapshotDate ? monthLabel(snapshotDate.slice(0, 7)) : "this month"}?
+              Close {month ? monthLabel(month) : "this month"}?
             </AlertDialogTitle>
             <AlertDialogDescription>
+              {snapshotDate && `Dated ${dateLabel(snapshotDate)}. `}
               The snapshot becomes read-only (amendable later from History).
               {!fxValid && " The USD/SGD rate will be fetched automatically."}
             </AlertDialogDescription>

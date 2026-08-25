@@ -2,11 +2,9 @@ export type ChartRangePreset = "6m" | "1y" | "ytd" | "all";
 export type ChartRange = { preset: ChartRangePreset } | { start?: string; end?: string };
 
 // Months are "YYYY-MM" strings; lexicographic comparison is chronological.
-export function addMonths(month: string, delta: number): string {
-  const [y, m] = month.split("-").map(Number);
-  const total = y * 12 + (m - 1) + delta;
-  return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, "0")}`;
-}
+import { addMonths } from "@/lib/month";
+
+export { addMonths };
 
 function presetStart(preset: ChartRangePreset, currentMonth: string): string | undefined {
   switch (preset) {

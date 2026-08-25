@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { ChevronDown } from "lucide-react";
 import type { SnapshotSummary } from "@/hooks/use-snapshots";
-import { dateLabel, sgd } from "@/lib/format";
+import { dateLabel, monthLabel, sgd } from "@/lib/format";
 import { SnapshotDetail } from "./snapshot-detail";
 
 export function SnapshotRow(props: { summary: SnapshotSummary; expanded: boolean; onToggle: () => void }) {
@@ -12,6 +12,9 @@ export function SnapshotRow(props: { summary: SnapshotSummary; expanded: boolean
       <button onClick={props.onToggle} className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left"
         aria-expanded={props.expanded}>
         <div>
+          <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            {monthLabel(s.month)}
+          </div>
           <div className="font-display text-lg font-semibold tracking-tight">{dateLabel(s.snapshotDate)}</div>
           <div className="mt-0.5 text-sm text-muted-foreground">FX USD/SGD: {s.fxRate.toFixed(4)}</div>
         </div>

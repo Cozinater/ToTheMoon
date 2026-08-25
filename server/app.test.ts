@@ -101,6 +101,44 @@ describe("close month", () => {
     expect(draft.holdings).toHaveLength(1);
     expect(draft.fxRate).toBe(1.3);
   });
+
+  it("files the snapshot under an explicit month instead of the date's own", async () => {
+    const app = makeApp();
+    await app.request("/api/draft", jsonReq("PUT", sampleDraft()));
+    const res = await app.request("/api/close", jsonReq("POST", { snapshotDate: "2026-08-01", month: "2026-07" }));
+    expect(res.status).toBe(200);
+    const snap = await json(res);
+    expect(snap.month).toBe("2026-07");
+    expect(snap.snapshotDate).toBe("2026-08-01");
+    expect((await app.request("/api/snapshots/2026-07")).status).toBe(200);
+    expect((await app.request("/api/snapshots/2026-08")).status).toBe(404);
+  });
+
+  it("lets a 1st-of-month close stand in for the previous month without blocking month-end", async () => {
+    const app = makeApp();
+    await app.request("/api/draft", jsonReq("PUT", sampleDraft()));
+    const first = await app.request("/api/close", jsonReq("POST", { snapshotDate: "2026-08-01", month: "2026-07" }));
+    const last = await app.request("/api/close", jsonReq("POST", { snapshotDate: "2026-08-31" }));
+    expect([first.status, last.status]).toEqual([200, 200]);
+    const list = (await json(await app.request("/api/snapshots"))).snapshots;
+    expect(list.map((s: { month: string; snapshotDate: string }) => [s.month, s.snapshotDate])).toEqual([
+      ["2026-08", "2026-08-31"],
+      ["2026-07", "2026-08-01"],
+    ]);
+  });
+
+  it("an explicit month that is already closed → 409 MONTH_EXISTS", async () => {
+    const { app } = await closed(); // 2026-06
+    const res = await app.request("/api/close", jsonReq("POST", { snapshotDate: "2026-07-01", month: "2026-06" }));
+    expect(res.status).toBe(409);
+    expect((await json(res)).error).toBe("MONTH_EXISTS");
+  });
+
+  it("rejects a malformed month with VALIDATION", async () => {
+    const res = await makeApp().request("/api/close", jsonReq("POST", { snapshotDate: "2026-08-01", month: "2026-8" }));
+    expect(res.status).toBe(400);
+    expect((await json(res)).error).toBe("VALIDATION");
+  });
 });
 
 describe("snapshots", () => {

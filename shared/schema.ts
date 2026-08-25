@@ -95,6 +95,9 @@ export type Snapshot = z.infer<typeof snapshotSchema>;
 export const closeInputSchema = z.object({
   snapshotDate: isoDate,
   fxRate: z.number().positive().optional(),
+  // Which month the snapshot is filed under. Defaults to the date's own month; a
+  // 1st-of-month close can be filed as the month just ended instead.
+  month: monthSchema.optional(),
 });
 export type CloseInput = z.infer<typeof closeInputSchema>;
 
