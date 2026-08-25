@@ -4,7 +4,6 @@ import { MonthPicker } from "@/components/month-picker";
 import { compactSgd, sgd } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ChartPoint } from "../hooks/use-dashboard-data";
-import { useHiddenSeries } from "../hooks/use-hidden-series";
 import { filterChartPoints, type ChartRange, type ChartRangePreset } from "../lib/chart-range";
 import { SERIES, visibleTotal, type SeriesKey } from "../lib/chart-series";
 import { ChartLegend } from "./chart-legend";
@@ -100,9 +99,16 @@ function CustomRangeInputs(props: {
   );
 }
 
-export function NetWorthChart({ points }: { points: ChartPoint[] }) {
+export function NetWorthChart({
+  points,
+  hidden,
+  onToggle,
+}: {
+  points: ChartPoint[];
+  hidden: SeriesKey[];
+  onToggle: (key: SeriesKey) => void;
+}) {
   const [range, setRange] = useState<ChartRange>({ preset: "all" });
-  const [hidden, toggleHidden] = useHiddenSeries();
   const filtered = filterChartPoints(points, range, currentMonth());
   const snapshotCount = filtered.filter((p) => p.month !== null).length;
   const visible = SERIES.filter((s) => !hidden.includes(s.key));
@@ -147,7 +153,7 @@ export function NetWorthChart({ points }: { points: ChartPoint[] }) {
           </ResponsiveContainer>
         )}
       </div>
-      <ChartLegend hidden={hidden} onToggle={toggleHidden} />
+      <ChartLegend hidden={hidden} onToggle={onToggle} />
     </div>
   );
 }

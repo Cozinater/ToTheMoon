@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { Entry, Holding } from "@shared/schema";
 import { computeTotals } from "@shared/totals";
 import {
+  netWorthDelta,
   parseHiddenSeries,
   serializeHiddenSeries,
   SERIES,
+  seriesValues,
   toggleSeries,
+  visibleNetWorth,
   visibleTotal,
   type SeriesKey,
 } from "./chart-series";
@@ -140,16 +143,49 @@ describe("visibleTotal vs computeTotals", () => {
     };
     const totals = computeTotals(doc, fxRate);
 
-    // Mirrors toPoint in use-dashboard-data.ts: creditCards and loans are negated.
-    const point = {
-      portfolio: totals.portfolioSgd,
-      savings: totals.savingsSgd,
-      cpf: totals.cpfSgd,
-      property: totals.propertySgd,
-      creditCards: -totals.creditCardsSgd,
-      loans: -totals.loansSgd,
-    };
+    expect(visibleTotal(seriesValues(totals), [])).toBe(totals.netWorthSgd);
+  });
+});
 
-    expect(visibleTotal(point, [])).toBe(totals.netWorthSgd);
+describe("seriesValues", () => {
+  const totals = {
+    portfolioUsd: 1_000, portfolioSgd: 1_350, savingsSgd: 20_000, cpfSgd: 30_000, propertySgd: 500_000,
+    creditCardsSgd: 4_000, loansSgd: 300_000, netWorthSgd: 247_350,
+  };
+
+  it("keys every chart series off Totals, negating liabilities for the chart", () => {
+    expect(seriesValues(totals)).toEqual({
+      portfolio: 1_350, savings: 20_000, cpf: 30_000, property: 500_000,
+      creditCards: -4_000, loans: -300_000,
+    });
+  });
+});
+
+describe("visibleNetWorth", () => {
+  const totals = {
+    portfolioUsd: 1_000, portfolioSgd: 1_350, savingsSgd: 20_000, cpfSgd: 30_000, propertySgd: 500_000,
+    creditCardsSgd: 4_000, loansSgd: 300_000, netWorthSgd: 247_350,
+  };
+
+  it("equals netWorthSgd when nothing is hidden", () => {
+    expect(visibleNetWorth(totals, [])).toBe(totals.netWorthSgd);
+  });
+
+  it("drops hidden assets and adds back hidden liabilities", () => {
+    expect(visibleNetWorth(totals, ["cpf", "loans"])).toBe(247_350 - 30_000 + 300_000);
+  });
+});
+
+describe("netWorthDelta", () => {
+  it("reports the change and its fraction of the previous value", () => {
+    expect(netWorthDelta(110, 100)).toEqual({ amount: 10, fraction: 0.1 });
+  });
+
+  it("measures the fraction against the magnitude of a negative previous value", () => {
+    expect(netWorthDelta(-50, -100)).toEqual({ amount: 50, fraction: 0.5 });
+  });
+
+  it("has no fraction when the previous value is zero", () => {
+    expect(netWorthDelta(10, 0)).toEqual({ amount: 10, fraction: null });
   });
 });

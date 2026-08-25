@@ -20,7 +20,7 @@ date range filter (`docs/superpowers/specs/2026-07-11-chart-date-range-filter-de
 | Persistence | `localStorage`, key `tothemoon:chart-hidden-series` |
 | Cross-tab sync | None — read once on mount |
 | Where the logic lives | Pure `lib/chart-series.ts` + a small `use-hidden-series` hook + a split-out legend component |
-| Scope of effect | Chart card only; hero, summary cards, draft card unaffected |
+| Scope of effect | Chart card only; hero, summary cards, draft card unaffected. **Amended 2026-08-25:** the hero's headline figure and its delta now follow the legend selection too (label reads "Visible Net Worth" while anything is hidden); summary cards and draft card remain unaffected |
 
 ## UI
 
@@ -47,8 +47,9 @@ date range filter (`docs/superpowers/specs/2026-07-11-chart-date-range-filter-de
 - Category filtering and range filtering are independent and compose: hiding a
   category never changes which months render, and the "N snapshots" count keeps
   reflecting the range alone.
-- Hidden categories do not affect the hero figure, the summary cards, or the
-  draft card.
+- Hidden categories do not affect the summary cards or the draft card. (As
+  amended 2026-08-25, the hero figure and its delta *do* follow the selection —
+  they total the visible series of the live draft and the latest snapshot.)
 
 ### Tooltip
 
