@@ -146,11 +146,16 @@ export function createApp({ store, market, originSecret, auth }: AppDeps) {
     if (!existing) return c.json({ error: "NOT_FOUND", message: "No such snapshot" }, 404);
     const parsed = amendInputSchema.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return invalid(c, parsed.error.issues);
+    const { month: target = month, ...input } = parsed.data;
     const snapshot: Snapshot = {
-      ...parsed.data, month, closedAt: existing.closedAt,
-      totals: computeTotals(parsed.data, parsed.data.fxRate),
+      ...input, month: target, closedAt: existing.closedAt,
+      totals: computeTotals(input, input.fxRate),
     };
-    await store.putSnapshot(snapshot);
+    if (target === month) {
+      await store.putSnapshot(snapshot);
+    } else if (!await store.moveSnapshot(month, snapshot)) {
+      return c.json({ error: "MONTH_EXISTS", message: `${target} is already closed` }, 409);
+    }
     return c.json(snapshot);
   });
 

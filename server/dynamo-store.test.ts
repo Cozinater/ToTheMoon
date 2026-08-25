@@ -85,3 +85,49 @@ describe("DynamoStore.listSnapshots", () => {
     expect(keyConditionMatches("DRAFT", input)).toBe(false);
   });
 });
+
+describe("DynamoStore.moveSnapshot", () => {
+  type TransactInput = { TransactItems?: Array<Record<string, { TableName?: string; Item?: Record<string, unknown>; Key?: Record<string, unknown>; ConditionExpression?: string }>> };
+
+  function transactDoc(outcome: "ok" | "target-exists" | "other-failure") {
+    const sent: TransactInput[] = [];
+    return {
+      sent,
+      send: async (cmd: { input: TransactInput }) => {
+        sent.push(cmd.input);
+        if (outcome === "ok") return {};
+        const err = new Error("cancelled") as Error & { name: string; CancellationReasons?: Array<{ Code: string }> };
+        err.name = "TransactionCanceledException";
+        err.CancellationReasons = outcome === "target-exists"
+          ? [{ Code: "ConditionalCheckFailed" }, { Code: "None" }]
+          : [{ Code: "None" }, { Code: "TransactionConflict" }];
+        throw err;
+      },
+    };
+  }
+
+  it("puts under the new month only if free, and deletes the old key, in one transaction", async () => {
+    const doc = transactDoc("ok");
+    const moved = { ...snap("2026-08"), month: "2026-07", snapshotDate: "2026-08-01" };
+    expect(await storeWith(doc as never).moveSnapshot("2026-08", moved)).toBe(true);
+    expect(doc.sent).toHaveLength(1);
+    const items = doc.sent[0].TransactItems ?? [];
+    expect(items).toHaveLength(2);
+    const put = items.find((i) => i.Put)?.Put;
+    const del = items.find((i) => i.Delete)?.Delete;
+    expect(put?.Item).toMatchObject({ pk: "USER", sk: "2026-07", month: "2026-07", snapshotDate: "2026-08-01" });
+    expect(put?.ConditionExpression).toBe("attribute_not_exists(sk)");
+    expect(del?.Key).toEqual({ pk: "USER", sk: "2026-08" });
+  });
+
+  it("returns false when the target month already exists", async () => {
+    const doc = transactDoc("target-exists");
+    expect(await storeWith(doc as never).moveSnapshot("2026-08", { ...snap("2026-08"), month: "2026-07" })).toBe(false);
+  });
+
+  it("rethrows a cancellation that is not the uniqueness check", async () => {
+    const doc = transactDoc("other-failure");
+    await expect(storeWith(doc as never).moveSnapshot("2026-08", { ...snap("2026-08"), month: "2026-07" }))
+      .rejects.toThrow("cancelled");
+  });
+});

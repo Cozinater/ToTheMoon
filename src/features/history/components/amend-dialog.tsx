@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/date-picker";
+import { MonthPicker } from "@/components/month-picker";
 import { ResponsiveModal } from "@/components/responsive-modal";
-import { useAmendSnapshot } from "@/hooks/use-snapshots";
+import { useAmendSnapshot, useSnapshots } from "@/hooks/use-snapshots";
 import { monthLabel } from "@/lib/format";
 import type { AmendInput, Entry, Holding, Snapshot } from "@shared/schema";
 import { HoldingForm } from "@/features/portfolio/components/holding-form";
@@ -22,12 +23,18 @@ type Target =
   | { group: "liabilities"; key: LiabilitySectionKey; title: string; entry?: Entry };
 
 const toInput = (s: Snapshot): AmendInput => ({
-  snapshotDate: s.snapshotDate, fxRate: s.fxRate,
+  snapshotDate: s.snapshotDate, fxRate: s.fxRate, month: s.month,
   holdings: s.holdings, assets: s.assets, liabilities: s.liabilities,
 });
 
-export function AmendDialog(props: { snapshot: Snapshot; open: boolean; onOpenChange: (o: boolean) => void }) {
+export function AmendDialog(props: {
+  snapshot: Snapshot;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  onMoved?: (month: string) => void;      // saved under a different month than it was opened with
+}) {
   const amend = useAmendSnapshot(props.snapshot.month);
+  const { data: snapshots } = useSnapshots();
   const [doc, setDoc] = useState<AmendInput>(() => toInput(props.snapshot));
   const [fxStr, setFxStr] = useState(String(props.snapshot.fxRate));
   const [holdingForm, setHoldingForm] = useState<{ open: boolean; editing?: Holding }>({ open: false });
@@ -41,7 +48,11 @@ export function AmendDialog(props: { snapshot: Snapshot; open: boolean; onOpenCh
   }, [props.open, props.snapshot]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fxRate = Number(fxStr);
-  const canSave = doc.snapshotDate !== "" && Number.isFinite(fxRate) && fxRate > 0 && !amend.isPending;
+  const month = doc.month ?? props.snapshot.month;
+  const moving = month !== props.snapshot.month;
+  const monthTaken = moving && (snapshots?.some((s) => s.month === month) ?? false);
+  const canSave = doc.snapshotDate !== "" && month !== "" && !monthTaken
+    && Number.isFinite(fxRate) && fxRate > 0 && !amend.isPending;
 
   function upsertHolding(h: Holding) {
     setDoc((d) => ({
@@ -71,17 +82,31 @@ export function AmendDialog(props: { snapshot: Snapshot; open: boolean; onOpenCh
       title={`Amend ${monthLabel(props.snapshot.month)}`}
       description="Totals are recalculated when you save. The original close date is preserved.">
       <div className="grid gap-5">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="grid gap-1.5">
-            <Label htmlFor="amend-date">Snapshot date</Label>
-            <DatePicker id="amend-date" value={doc.snapshotDate}
-              onChange={(v) => setDoc((d) => ({ ...d, snapshotDate: v }))} />
+        <div className="grid gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="grid gap-1.5">
+              <Label htmlFor="amend-date">Snapshot date</Label>
+              <DatePicker id="amend-date" value={doc.snapshotDate}
+                onChange={(v) => setDoc((d) => ({ ...d, snapshotDate: v }))} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="amend-month">Belongs to</Label>
+              <MonthPicker id="amend-month" value={month}
+                onChange={(v) => setDoc((d) => ({ ...d, month: v || props.snapshot.month }))} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="amend-fx">USD/SGD rate</Label>
+              <Input id="amend-fx" type="number" inputMode="decimal" min="0" step="any"
+                value={fxStr} onChange={(e) => setFxStr(e.target.value)} />
+            </div>
           </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="amend-fx">USD/SGD rate</Label>
-            <Input id="amend-fx" type="number" inputMode="decimal" min="0" step="any"
-              value={fxStr} onChange={(e) => setFxStr(e.target.value)} />
-          </div>
+          {monthTaken ? (
+            <p className="text-xs text-negative">{monthLabel(month)} already has a snapshot — amend or move that one first.</p>
+          ) : moving ? (
+            <p className="text-xs text-muted-foreground">
+              Moves this snapshot from {monthLabel(props.snapshot.month)} to {monthLabel(month)} in History.
+            </p>
+          ) : null}
         </div>
 
         <div className="grid gap-2">
@@ -119,7 +144,12 @@ export function AmendDialog(props: { snapshot: Snapshot; open: boolean; onOpenCh
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => props.onOpenChange(false)}>Cancel</Button>
           <Button disabled={!canSave}
-            onClick={() => amend.mutate({ ...doc, fxRate }, { onSuccess: () => props.onOpenChange(false) })}>
+            onClick={() => amend.mutate({ ...doc, month, fxRate }, {
+              onSuccess: (snap) => {
+                if (snap.month !== props.snapshot.month) props.onMoved?.(snap.month);
+                props.onOpenChange(false);
+              },
+            })}>
             {amend.isPending ? "Saving…" : "Save changes"}
           </Button>
         </div>

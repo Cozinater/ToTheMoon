@@ -1,6 +1,6 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
-  BatchWriteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand,
+  BatchWriteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, TransactWriteCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { monthSchema } from "../shared/schema.ts";
 import type { Draft, Settings, Snapshot } from "../shared/schema.ts";
@@ -17,6 +17,12 @@ const MONTH_SK_LO = "0000-00";
 const MONTH_SK_HI = "9999-99";
 
 const isMonthKey = (sk: unknown) => monthSchema.safeParse(sk).success;
+
+// A cancelled transaction reports one reason per item, in order. The Put is item 0, so
+// a ConditionalCheckFailed there means "target month already exists" and nothing else.
+const targetMonthTaken = (err: unknown): boolean =>
+  err instanceof Error && err.name === "TransactionCanceledException" &&
+  (err as { CancellationReasons?: Array<{ Code?: string }> }).CancellationReasons?.[0]?.Code === "ConditionalCheckFailed";
 
 export class DynamoStore implements SnapshotStore {
   private doc: DynamoDBDocumentClient;
@@ -86,6 +92,22 @@ export class DynamoStore implements SnapshotStore {
 
   async putSnapshot(snap: Snapshot): Promise<void> {
     await this.doc.send(new PutCommand({ TableName: this.table, Item: { pk: PK, sk: snap.month, ...snap } }));
+  }
+
+  async moveSnapshot(from: string, snap: Snapshot): Promise<boolean> {
+    try {
+      await this.doc.send(new TransactWriteCommand({
+        TransactItems: [
+          { Put: { TableName: this.table, Item: { pk: PK, sk: snap.month, ...snap },
+            ConditionExpression: "attribute_not_exists(sk)" } },
+          { Delete: { TableName: this.table, Key: { pk: PK, sk: from } } },
+        ],
+      }));
+      return true;
+    } catch (err) {
+      if (targetMonthTaken(err)) return false;
+      throw err;
+    }
   }
 
   async reset(): Promise<number> {

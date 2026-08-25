@@ -7,6 +7,8 @@ export interface SnapshotStore {
   listSnapshots(): Promise<Snapshot[]>;
   createSnapshot(snap: Snapshot): Promise<boolean>;
   putSnapshot(snap: Snapshot): Promise<void>;
+  /** Re-key `from` as `snap.month` (≠ from). False, with nothing changed, if that month is taken. */
+  moveSnapshot(from: string, snap: Snapshot): Promise<boolean>;
   getSettings(): Promise<Settings | null>;
   putSettings(settings: Settings): Promise<void>;
   reset(): Promise<number>;
@@ -28,6 +30,10 @@ export class MemoryStore implements SnapshotStore {
     this.snapshots.set(snap.month, snap); this.persist(); return true;
   }
   async putSnapshot(snap: Snapshot) { this.snapshots.set(snap.month, snap); this.persist(); }
+  async moveSnapshot(from: string, snap: Snapshot) {
+    if (this.snapshots.has(snap.month)) return false;
+    this.snapshots.delete(from); this.snapshots.set(snap.month, snap); this.persist(); return true;
+  }
   async getSettings() { return this.settings; }
   async putSettings(settings: Settings) { this.settings = settings; this.persist(); }
   async reset() {
