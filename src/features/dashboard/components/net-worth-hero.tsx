@@ -19,11 +19,14 @@ function CountUp({ value }: { value: number }) {
 export function NetWorthHero(props: {
   value: number;
   delta: { amount: number; fraction: number | null; vs: string } | null;
+  filtered?: boolean;                      // some chart categories hidden — value is a partial total
 }) {
   const up = (props.delta?.amount ?? 0) >= 0;
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: "easeOut" }}>
-      <div className="text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">Total Net Worth</div>
+      <div className="text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">
+        {props.filtered ? "Visible Net Worth" : "Total Net Worth"}
+      </div>
       <div className="glow mt-3 font-serif text-7xl tracking-tight text-cream md:text-8xl">
         <CountUp value={props.value} />
       </div>

@@ -3,23 +3,19 @@ import { useSnapshots } from "@/hooks/use-snapshots";
 import { monthLabel } from "@/lib/format";
 import type { Totals } from "@shared/schema";
 import { computeTotals } from "@shared/totals";
+import { netWorthDelta, seriesValues, visibleNetWorth, type SeriesKey } from "../lib/chart-series";
 
-export type ChartPoint = {
+export type ChartPoint = Record<SeriesKey, number> & {
   month: string | null;                    // snapshot "YYYY-MM"; null for the live "Now" point
   label: string;
-  portfolio: number; savings: number; cpf: number; property: number;
-  creditCards: number; loans: number;      // stored negative for the chart
-  netWorth: number;
 };
 
-const toPoint = (month: string | null, label: string, t: Totals): ChartPoint => ({
-  month, label,
-  portfolio: t.portfolioSgd, savings: t.savingsSgd, cpf: t.cpfSgd, property: t.propertySgd,
-  creditCards: -t.creditCardsSgd, loans: -t.loansSgd,
-  netWorth: t.netWorthSgd,
-});
+const toPoint = (month: string | null, label: string, t: Totals): ChartPoint =>
+  ({ month, label, ...seriesValues(t) });
 
-export function useDashboardData() {
+// `hidden` is the chart's legend selection: the headline figure and its delta follow
+// it, so the hero always totals exactly what the chart is plotting.
+export function useDashboardData(hidden: SeriesKey[] = []) {
   const draft = useDraft();
   const snapshots = useSnapshots();
 
@@ -33,14 +29,9 @@ export function useDashboardData() {
     .map((s) => toPoint(s.month, monthLabel(s.month), s.totals));
   if (totals) points.push(toPoint(null, "Now", totals));
 
-  const delta = totals && latest
-    ? {
-        amount: totals.netWorthSgd - latest.totals.netWorthSgd,
-        fraction: latest.totals.netWorthSgd !== 0
-          ? (totals.netWorthSgd - latest.totals.netWorthSgd) / Math.abs(latest.totals.netWorthSgd)
-          : null,
-        vs: monthLabel(latest.month),
-      }
+  const netWorth = totals ? visibleNetWorth(totals, hidden) : undefined;
+  const delta = netWorth != null && latest
+    ? { ...netWorthDelta(netWorth, visibleNetWorth(latest.totals, hidden)), vs: monthLabel(latest.month) }
     : null;
 
   return {
@@ -48,6 +39,6 @@ export function useDashboardData() {
     isError: draft.isError || snapshots.isError,
     refetch: () => { void draft.refetch(); void snapshots.refetch(); },
     draft: draft.data,
-    totals, fxRate, fxMissing, points, delta,
+    totals, netWorth, fxRate, fxMissing, points, delta,
   };
 }
