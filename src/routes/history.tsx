@@ -36,7 +36,8 @@ function HistoryPage() {
         <div className="grid gap-3">
           {snapshots.map((s) => (
             <SnapshotRow key={s.month} summary={s} expanded={expanded === s.month}
-              onToggle={() => setExpanded(expanded === s.month ? null : s.month)} />
+              onToggle={() => setExpanded(expanded === s.month ? null : s.month)}
+              onMoved={setExpanded} />
           ))}
         </div>
       ))}

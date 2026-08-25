@@ -107,6 +107,8 @@ export const amendInputSchema = z.object({
   holdings: z.array(holdingSchema),
   assets: assetsSchema,
   liabilities: liabilitiesSchema,
+  // Re-file the snapshot under another month. Omitted or equal to the URL month → plain amend.
+  month: monthSchema.optional(),
 });
 export type AmendInput = z.infer<typeof amendInputSchema>;
 

@@ -4,7 +4,12 @@ import type { SnapshotSummary } from "@/hooks/use-snapshots";
 import { dateLabel, monthLabel, sgd } from "@/lib/format";
 import { SnapshotDetail } from "./snapshot-detail";
 
-export function SnapshotRow(props: { summary: SnapshotSummary; expanded: boolean; onToggle: () => void }) {
+export function SnapshotRow(props: {
+  summary: SnapshotSummary;
+  expanded: boolean;
+  onToggle: () => void;
+  onMoved?: (month: string) => void;
+}) {
   const s = props.summary;
   return (
     <motion.div layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
@@ -37,7 +42,7 @@ export function SnapshotRow(props: { summary: SnapshotSummary; expanded: boolean
             transition={{ type: "spring", stiffness: 220, damping: 28 }}
           >
             <div className="border-t border-border/40 p-5">
-              <SnapshotDetail month={s.month} />
+              <SnapshotDetail month={s.month} onMoved={props.onMoved} />
             </div>
           </motion.div>
         )}

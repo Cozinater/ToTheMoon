@@ -31,6 +31,23 @@ function behavesLikeAStore(make: () => SnapshotStore) {
     expect((await store.getSnapshot("2026-06"))?.fxRate).toBe(1.4);
   });
 
+  it("moveSnapshot re-keys a snapshot under a new month", async () => {
+    await store.createSnapshot(snap("2026-08"));
+    const moved = { ...snap("2026-08"), month: "2026-07", snapshotDate: "2026-08-01" };
+    expect(await store.moveSnapshot("2026-08", moved)).toBe(true);
+    expect(await store.getSnapshot("2026-08")).toBeNull();
+    expect(await store.getSnapshot("2026-07")).toEqual(moved);
+    expect((await store.listSnapshots()).map((s) => s.month)).toEqual(["2026-07"]);
+  });
+
+  it("moveSnapshot refuses to overwrite an existing month and leaves both untouched", async () => {
+    await store.createSnapshot(snap("2026-07"));
+    await store.createSnapshot({ ...snap("2026-08"), fxRate: 1.5 });
+    expect(await store.moveSnapshot("2026-08", { ...snap("2026-08"), month: "2026-07" })).toBe(false);
+    expect((await store.getSnapshot("2026-07"))?.fxRate).toBe(1.328);
+    expect((await store.getSnapshot("2026-08"))?.fxRate).toBe(1.5);
+  });
+
   it("lists snapshots newest first, draft excluded", async () => {
     await store.putDraft(emptyDraft());
     await store.createSnapshot(snap("2026-04"));
@@ -83,6 +100,16 @@ describe("FileStore", () => {
     const b = new FileStore(file);
     expect((await b.getSnapshot("2026-06"))?.month).toBe("2026-06");
     expect(JSON.parse(readFileSync(file, "utf8")).snapshots["2026-06"]).toBeTruthy();
+  });
+
+  it("persists a move across instances", async () => {
+    const file = join(dir, "move.json");
+    const a = new FileStore(file);
+    await a.createSnapshot(snap("2026-08"));
+    await a.moveSnapshot("2026-08", { ...snap("2026-08"), month: "2026-07" });
+    const b = new FileStore(file);
+    expect(await b.getSnapshot("2026-08")).toBeNull();
+    expect((await b.getSnapshot("2026-07"))?.month).toBe("2026-07");
   });
 
   it("persists settings across instances", async () => {

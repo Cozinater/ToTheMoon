@@ -170,6 +170,49 @@ describe("snapshots", () => {
       snapshotDate: "2031-01-26", fxRate: 1.3, ...emptyDraft(),
     }))).status).toBe(404);
   });
+
+  it("amend with a different month re-files the snapshot and preserves closedAt", async () => {
+    const app = makeApp();
+    await app.request("/api/draft", jsonReq("PUT", sampleDraft()));
+    const snap = await json(await app.request("/api/close", jsonReq("POST", { snapshotDate: "2026-08-01" })));
+    const res = await app.request("/api/snapshots/2026-08", jsonReq("PUT", {
+      snapshotDate: snap.snapshotDate, fxRate: snap.fxRate, month: "2026-07",
+      holdings: snap.holdings, assets: snap.assets, liabilities: snap.liabilities,
+    }));
+    expect(res.status).toBe(200);
+    const moved = await json(res);
+    expect(moved.month).toBe("2026-07");
+    expect(moved.closedAt).toBe(snap.closedAt);
+    expect((await app.request("/api/snapshots/2026-08")).status).toBe(404);
+    expect((await json(await app.request("/api/snapshots/2026-07"))).snapshotDate).toBe("2026-08-01");
+  });
+
+  it("amend into a month that already has a snapshot → 409 MONTH_EXISTS, nothing changes", async () => {
+    const app = makeApp();
+    await app.request("/api/draft", jsonReq("PUT", sampleDraft()));
+    await app.request("/api/close", jsonReq("POST", { snapshotDate: "2026-07-31" }));
+    const aug = await json(await app.request("/api/close", jsonReq("POST", { snapshotDate: "2026-08-31" })));
+    const res = await app.request("/api/snapshots/2026-08", jsonReq("PUT", {
+      snapshotDate: aug.snapshotDate, fxRate: 1.9, month: "2026-07",
+      holdings: aug.holdings, assets: aug.assets, liabilities: aug.liabilities,
+    }));
+    expect(res.status).toBe(409);
+    expect((await json(res)).error).toBe("MONTH_EXISTS");
+    expect((await json(await app.request("/api/snapshots/2026-08"))).fxRate).toBe(1.3);
+    expect((await json(await app.request("/api/snapshots/2026-07"))).snapshotDate).toBe("2026-07-31");
+  });
+
+  it("amend with month equal to the path month is a plain overwrite", async () => {
+    const app = makeApp();
+    await app.request("/api/draft", jsonReq("PUT", sampleDraft()));
+    const snap = await json(await app.request("/api/close", jsonReq("POST", { snapshotDate: "2026-08-31" })));
+    const res = await app.request("/api/snapshots/2026-08", jsonReq("PUT", {
+      snapshotDate: snap.snapshotDate, fxRate: 1.4, month: "2026-08",
+      holdings: snap.holdings, assets: snap.assets, liabilities: snap.liabilities,
+    }));
+    expect(res.status).toBe(200);
+    expect((await json(await app.request("/api/snapshots/2026-08"))).fxRate).toBe(1.4);
+  });
 });
 
 describe("quote / fx / reset", () => {

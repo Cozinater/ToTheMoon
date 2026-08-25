@@ -14,7 +14,7 @@ import { SectionCard } from "@/features/assets/components/section-card";
 import { ASSET_SECTIONS, LIABILITY_SECTIONS } from "@/features/assets/sections";
 import { AmendDialog } from "./amend-dialog";
 
-export function SnapshotDetail({ month }: { month: string }) {
+export function SnapshotDetail({ month, onMoved }: { month: string; onMoved?: (month: string) => void }) {
   const { data: snap, isPending, isError, refetch } = useSnapshot(month);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [amendOpen, setAmendOpen] = useState(false);
@@ -64,7 +64,7 @@ export function SnapshotDetail({ month }: { month: string }) {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AmendDialog snapshot={snap} open={amendOpen} onOpenChange={setAmendOpen} />
+      <AmendDialog snapshot={snap} open={amendOpen} onOpenChange={setAmendOpen} onMoved={onMoved} />
     </div>
   );
 }

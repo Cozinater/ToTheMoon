@@ -38,7 +38,10 @@ export function useAmendSnapshot(month: string) {
     mutationFn: (input: AmendInput) =>
       api<Snapshot>(`/api/snapshots/${month}`, { method: "PUT", body: JSON.stringify(input) }),
     onSuccess: (snap) => {
-      qc.setQueryData(["snapshot", month], snap);
+      qc.setQueryData(["snapshot", snap.month], snap);
+      // Re-filed under another month: the old entry is stale, but don't refetch it now —
+      // the detail panel is still showing it while History reshuffles, and it would 404.
+      if (snap.month !== month) qc.invalidateQueries({ queryKey: ["snapshot", month], refetchType: "none" });
       qc.invalidateQueries({ queryKey: ["snapshots"] });
     },
   });
