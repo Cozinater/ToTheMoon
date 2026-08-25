@@ -115,7 +115,7 @@ export function createApp({ store, market, originSecret, auth }: AppDeps) {
     const fxRate = parsed.data.fxRate ?? (await market.fx()).rate;
     const { holdings, assets, liabilities } = draft;
     const snapshot: Snapshot = {
-      month: parsed.data.snapshotDate.slice(0, 7),
+      month: parsed.data.month ?? parsed.data.snapshotDate.slice(0, 7),
       snapshotDate: parsed.data.snapshotDate,
       fxRate,
       closedAt: new Date().toISOString(),
