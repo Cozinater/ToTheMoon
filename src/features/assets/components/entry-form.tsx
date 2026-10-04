@@ -7,6 +7,7 @@ import { ResponsiveModal } from "@/components/responsive-modal";
 import type { Entry } from "@shared/schema";
 import { loanOwed, round2 } from "@shared/totals";
 import { sgd } from "@/lib/format";
+import { toYmd } from "@/lib/date";
 
 export function EntryForm(props: {
   open: boolean;
@@ -31,6 +32,12 @@ export function EntryForm(props: {
     setPrincipalStr(props.initial?.principalSgd !== undefined ? String(props.initial.principalSgd) : "");
     setPercentStr(props.initial?.percent !== undefined ? String(props.initial.percent) : "");
   }, [props.open, props.initial]);
+
+  // Changing the amount means the figure is fresh, so it is as of today.
+  const editAmount = (set: (value: string) => void) => (value: string) => {
+    set(value);
+    setAsOf(toYmd(new Date()));
+  };
 
   const filled = (str: string) => str.trim() !== "" && Number.isFinite(Number(str)) && Number(str) >= 0;
   const principal = round2(Number(principalStr));
@@ -60,12 +67,12 @@ export function EntryForm(props: {
               <div className="grid gap-1.5">
                 <Label htmlFor="entry-principal">Initial amount (SGD)</Label>
                 <Input id="entry-principal" type="number" inputMode="decimal" min="0" step="any"
-                  value={principalStr} onChange={(e) => setPrincipalStr(e.target.value)} />
+                  value={principalStr} onChange={(e) => editAmount(setPrincipalStr)(e.target.value)} />
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="entry-percent">Percentage (%)</Label>
                 <Input id="entry-percent" type="number" inputMode="decimal" min="0" step="any"
-                  placeholder="100" value={percentStr} onChange={(e) => setPercentStr(e.target.value)} />
+                  placeholder="100" value={percentStr} onChange={(e) => editAmount(setPercentStr)(e.target.value)} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -91,7 +98,7 @@ export function EntryForm(props: {
             <div className="grid gap-1.5">
               <Label htmlFor="entry-balance">Balance (SGD)</Label>
               <Input id="entry-balance" type="number" inputMode="decimal" min="0" step="any"
-                value={balanceStr} onChange={(e) => setBalanceStr(e.target.value)} />
+                value={balanceStr} onChange={(e) => editAmount(setBalanceStr)(e.target.value)} />
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="entry-asof">As-of date</Label>
