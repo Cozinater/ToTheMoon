@@ -1,6 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import { ChartPie, Clock, LayoutGrid, Rocket, Settings, Wallet } from "lucide-react";
+import {
+  ChartPie, Clock, LayoutGrid, PanelLeftClose, PanelLeftOpen, Rocket, Settings, Wallet,
+} from "lucide-react";
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
+import { useSidebarCollapsed } from "./sidebar-state";
 
 const items = [
   { to: "/", label: "Dashboard", icon: LayoutGrid },
@@ -21,35 +25,64 @@ function BrandMark({ size = "size-10" }: { size?: string }) {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const [collapsed, toggleCollapsed] = useSidebarCollapsed();
+  const ToggleIcon = collapsed ? PanelLeftOpen : PanelLeftClose;
+
   return (
     <div className="min-h-svh">
-      <aside className="fixed inset-y-0 left-0 hidden w-72 flex-col gap-10 border-r border-border/60 bg-sidebar p-6 md:flex">
-        <div className="flex items-center gap-3">
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 hidden flex-col gap-10 overflow-hidden border-r border-border/60 bg-sidebar transition-[width,padding] duration-200 md:flex",
+          collapsed ? "w-18 px-3 py-6" : "w-72 p-6",
+        )}
+      >
+        <div className={cn("flex items-center gap-3", collapsed && "justify-center")}>
           <BrandMark />
-          <div>
-            <div className="font-display text-lg font-semibold tracking-tight">ToTheMoon</div>
-            <div className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-              Build wealth. Go further.
+          {!collapsed && (
+            <div className="whitespace-nowrap">
+              <div className="font-display text-lg font-semibold tracking-tight">ToTheMoon</div>
+              <div className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                Build wealth. Go further.
+              </div>
             </div>
-          </div>
+          )}
         </div>
         <nav className="flex flex-col gap-1.5">
           {items.map(({ to, label, icon: Icon }) => (
             <Link
               key={to}
               to={to}
-              className="flex items-center gap-3 rounded-xl border border-transparent px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary/50 hover:text-foreground"
+              title={collapsed ? label : undefined}
+              aria-label={collapsed ? label : undefined}
+              className={cn(
+                "flex items-center gap-3 rounded-xl border border-transparent py-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors hover:bg-secondary/50 hover:text-foreground",
+                collapsed ? "justify-center px-0" : "px-4",
+              )}
               activeProps={{
                 className:
                   "!border-primary/40 bg-primary/10 !text-primary shadow-[0_0_24px_rgba(232,192,105,0.16),inset_0_0_16px_rgba(232,192,105,0.05)]",
               }}
               activeOptions={{ exact: to === "/" }}
             >
-              <Icon className="size-4" />
-              {label}
+              <Icon className="size-4 shrink-0" />
+              {!collapsed && label}
             </Link>
           ))}
         </nav>
+        <button
+          type="button"
+          onClick={toggleCollapsed}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-expanded={!collapsed}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className={cn(
+            "mt-auto flex items-center gap-3 rounded-xl py-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors hover:bg-secondary/50 hover:text-foreground",
+            collapsed ? "justify-center px-0" : "px-4",
+          )}
+        >
+          <ToggleIcon className="size-4 shrink-0" />
+          {!collapsed && "Collapse"}
+        </button>
       </aside>
 
       <header className="flex items-center justify-between px-4 py-3 md:hidden">
@@ -84,7 +117,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           ))}
       </nav>
 
-      <main className="md:pl-72">
+      <main className={cn("transition-[padding] duration-200", collapsed ? "md:pl-18" : "md:pl-72")}>
         <div className="mx-auto max-w-7xl p-4 pb-28 md:p-10 md:pb-12">{children}</div>
       </main>
     </div>
