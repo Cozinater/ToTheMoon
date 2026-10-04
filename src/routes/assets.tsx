@@ -161,6 +161,7 @@ function AssetsPage() {
         onOpenChange={(o) => !o && setForm(null)}
         initial={form?.entry}
         sectionTitle={form?.title ?? ""}
+        loan={form?.key === "loans"}
         onSave={upsertEntry}
       />
 

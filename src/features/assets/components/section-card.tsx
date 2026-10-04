@@ -77,6 +77,11 @@ export function SectionCard(props: {
                   <div className="mt-0.5 text-sm text-muted-foreground" title={`as of ${dateLabel(e.asOf)}`}>
                     {negative ? "-" : ""}{sgd(e.balanceSgd)}
                   </div>
+                  {e.principalSgd !== undefined && e.percent !== undefined && (
+                    <div className="mt-0.5 text-xs text-muted-foreground/80 tabular-nums">
+                      {sgd(e.principalSgd)} × {e.percent}%
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-1 text-muted-foreground">
                   {props.onEdit && (

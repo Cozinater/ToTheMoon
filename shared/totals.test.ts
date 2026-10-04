@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyDraft } from "./schema.ts";
-import { computeTotals, round2 } from "./totals.ts";
+import { computeTotals, loanOwed, round2 } from "./totals.ts";
 
 it("round2 rounds half up to cents", () => {
   expect(round2(1.005)).toBe(1.01);
@@ -41,5 +41,13 @@ describe("computeTotals", () => {
     expect(t.creditCardsSgd).toBe(1757.5);
     expect(t.loansSgd).toBe(391400);
     expect(t.netWorthSgd).toBe(round2(79466.79 + 49646 + 146544 - 1757.5 - 391400));
+  });
+});
+
+describe("loanOwed", () => {
+  it("multiplies the initial amount by the percentage, to cents", () => {
+    expect(loanOwed(5000, 115.13)).toBe(5756.5);
+    expect(loanOwed(1234.56, 100)).toBe(1234.56);
+    expect(loanOwed(3000, 0)).toBe(0);
   });
 });
