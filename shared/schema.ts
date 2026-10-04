@@ -20,11 +20,16 @@ export const holdingSchema = z.object({
   id: z.uuid(),
   ticker: z.string().min(1).max(12),
   type: assetTypeSchema,
-  quantity: z.number().positive(),
+  quantity: z.number(),
   priceUsd: z.number().nonnegative(),
-  valueUsd: z.number().nonnegative(),
+  valueUsd: z.number(),
   asOf: isoDate,
   strategy: z.string().min(1).max(40).optional(),
+}).superRefine((h, ctx) => {
+  // Cash may be zero or negative (a margin debit); an instrument position may not.
+  if (h.type === "cash") return;
+  if (h.quantity <= 0) ctx.addIssue({ code: "custom", path: ["quantity"], message: "must be positive" });
+  if (h.valueUsd < 0) ctx.addIssue({ code: "custom", path: ["valueUsd"], message: "must be non-negative" });
 });
 export type Holding = z.infer<typeof holdingSchema>;
 

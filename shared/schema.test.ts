@@ -45,6 +45,17 @@ describe("holdingSchema", () => {
     expect(holdingSchema.safeParse({ ...holding(), asOf: "01/07/2026" }).success).toBe(false);
     expect(holdingSchema.safeParse({ ...holding(), quantity: 0 }).success).toBe(false);
   });
+
+  it("refuses a negative instrument position", () => {
+    expect(holdingSchema.safeParse({ ...holding(), quantity: -1 }).success).toBe(false);
+    expect(holdingSchema.safeParse({ ...holding(), valueUsd: -1 }).success).toBe(false);
+  });
+
+  it("accepts a zero or negative cash balance", () => {
+    const cash = (n: number) => ({ ...holding(), type: "cash", quantity: n, priceUsd: 1, valueUsd: n });
+    expect(holdingSchema.safeParse(cash(-250.5)).success).toBe(true);
+    expect(holdingSchema.safeParse(cash(0)).success).toBe(true);
+  });
 });
 
 describe("amendInputSchema", () => {
