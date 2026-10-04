@@ -2,6 +2,9 @@ import type { Assets, Holding, Liabilities, Totals } from "./schema.ts";
 
 export const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
+/** What a loan is worth now: the amount borrowed times its current percentage (115 = 115%). */
+export const loanOwed = (principalSgd: number, percent: number) => round2((principalSgd * percent) / 100);
+
 const sum = (entries: { balanceSgd: number }[]) =>
   round2(entries.reduce((acc, e) => acc + e.balanceSgd, 0));
 

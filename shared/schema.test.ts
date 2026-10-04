@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  amendInputSchema, defaultSettings, draftInputSchema, emptyDraft, holdingSchema,
+  amendInputSchema, defaultSettings, draftInputSchema, emptyDraft, entrySchema, holdingSchema,
   quotableTypeSchema, settingsSchema,
 } from "./schema.ts";
 
@@ -127,5 +127,25 @@ describe("quotableTypeSchema", () => {
 
   it.each(["stock", "etf", "crypto"])("accepts %s", (t) => {
     expect(quotableTypeSchema.safeParse(t).success).toBe(true);
+  });
+});
+
+describe("entrySchema initial amount and percentage", () => {
+  const loan = (extra: object) => ({ ...entry("BRIAN"), ...extra });
+
+  it("accepts an entry with neither or both", () => {
+    expect(entrySchema.safeParse(loan({})).success).toBe(true);
+    expect(entrySchema.safeParse(loan({ principalSgd: 5000, percent: 115.13, balanceSgd: 5756.5 })).success).toBe(true);
+  });
+
+  it("rejects only one of the pair", () => {
+    expect(entrySchema.safeParse(loan({ principalSgd: 5000 })).success).toBe(false);
+    expect(entrySchema.safeParse(loan({ percent: 115 })).success).toBe(false);
+  });
+
+  it("rejects negatives and a balance that does not match", () => {
+    expect(entrySchema.safeParse(loan({ principalSgd: -1, percent: 100, balanceSgd: 0 })).success).toBe(false);
+    expect(entrySchema.safeParse(loan({ principalSgd: 5000, percent: -1, balanceSgd: 0 })).success).toBe(false);
+    expect(entrySchema.safeParse(loan({ principalSgd: 5000, percent: 115.13, balanceSgd: 9999 })).success).toBe(false);
   });
 });

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { loanOwed } from "./totals.ts";
 
 export const SECTION_LIMITS = { bankSavings: 5, cpf: 4, property: 1, creditCards: 5 } as const;
 
@@ -49,6 +50,18 @@ export const entrySchema = z.object({
   name: z.string().min(1).max(60),
   balanceSgd: z.number().nonnegative(),
   asOf: isoDate,
+  // A loan from a friend who shares in the investments: balance = initial amount × percentage.
+  principalSgd: z.number().nonnegative().optional(),
+  percent: z.number().nonnegative().optional(),
+}).superRefine((e, ctx) => {
+  if (e.principalSgd === undefined && e.percent === undefined) return;
+  if (e.principalSgd === undefined || e.percent === undefined) {
+    ctx.addIssue({ code: "custom", path: ["percent"], message: "initial amount and percentage go together" });
+    return;
+  }
+  if (e.balanceSgd !== loanOwed(e.principalSgd, e.percent)) {
+    ctx.addIssue({ code: "custom", path: ["balanceSgd"], message: "must equal initial amount × percentage" });
+  }
 });
 export type Entry = z.infer<typeof entrySchema>;
 

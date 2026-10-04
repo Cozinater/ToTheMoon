@@ -160,7 +160,8 @@ export function AmendDialog(props: {
         initial={holdingForm.editing}
         onSave={(h) => upsertHolding(h)} />
       <EntryForm open={!!entryForm} onOpenChange={(o) => !o && setEntryForm(null)}
-        initial={entryForm?.entry} sectionTitle={entryForm?.title ?? ""} onSave={upsertEntry} />
+        initial={entryForm?.entry} sectionTitle={entryForm?.title ?? ""}
+        loan={entryForm?.key === "loans"} onSave={upsertEntry} />
     </ResponsiveModal>
   );
 }
