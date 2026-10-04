@@ -33,13 +33,13 @@ export function CashFields(props: {
 
   const amount = Number(amountStr);
   // USD cash: one "unit" is one dollar, so quantity, price × quantity and value agree.
-  // Round once here and reuse everywhere below, so the enable condition and the
-  // saved value can never disagree (e.g. 0.004 rounds to 0 and must not be savable).
+  // Round once here and reuse below. Zero and negative are allowed: an emptied
+  // account is 0, and a margin debit is cash you owe the broker.
   const roundedAmount = round2(amount);
   const trimmed = label.trim();
   const canSave =
     trimmed !== "" && trimmed.length <= LABEL_MAX &&
-    asOf !== "" && Number.isFinite(amount) && roundedAmount > 0;
+    asOf !== "" && amountStr.trim() !== "" && Number.isFinite(amount);
 
   function save() {
     if (!canSave) return;
@@ -70,7 +70,7 @@ export function CashFields(props: {
         <div className="grid gap-1.5">
           <Label htmlFor="cash-amount">Amount (USD)</Label>
           <Input
-            id="cash-amount" type="number" inputMode="decimal" min="0" step="any" placeholder="0"
+            id="cash-amount" type="number" step="any" placeholder="0"
             value={amountStr} onChange={(e) => setAmountStr(e.target.value)}
           />
         </div>
