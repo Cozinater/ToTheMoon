@@ -19,6 +19,7 @@ import type { Holding } from "@shared/schema";
 import { HoldingsTable } from "@/features/portfolio/components/holdings-table";
 import { HoldingForm } from "@/features/portfolio/components/holding-form";
 import { StrategyMixBar } from "@/features/portfolio/components/strategy-mix-bar";
+import { PerformanceHeatmap } from "@/features/portfolio/components/performance-heatmap";
 import { splitCash } from "@/features/portfolio/lib/cash";
 import type { FxResponse, QuoteBatch } from "@/features/portfolio/types";
 
@@ -129,12 +130,15 @@ function PortfolioPage() {
           action={<Button onClick={() => { setEditing(undefined); setFormOpen(true); }}><Plus className="size-4" /> Add your first holding</Button>}
         />
       ) : (
-        <HoldingsTable
-          holdings={draft.holdings}
-          filterable
-          onEdit={(h) => { setEditing(h); setFormOpen(true); }}
-          onDelete={setDeleting}
-        />
+        <>
+          {invested.length > 0 && <PerformanceHeatmap holdings={invested} />}
+          <HoldingsTable
+            holdings={draft.holdings}
+            filterable
+            onEdit={(h) => { setEditing(h); setFormOpen(true); }}
+            onDelete={setDeleting}
+          />
+        </>
       )}
 
       <HoldingForm open={formOpen} onOpenChange={setFormOpen} initial={editing} onSave={upsert} />

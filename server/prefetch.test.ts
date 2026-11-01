@@ -10,6 +10,13 @@ const json = (body: unknown) => new Response(JSON.stringify(body), {
 });
 afterEach(() => vi.unstubAllGlobals());
 
+/** A Twelve Data /time_series batch body: two daily bars per requested symbol. */
+const historyBody = (url: string) => {
+  const syms = new URL(url).searchParams.get("symbol")!.split(",");
+  const series = { meta: { currency: "USD" }, values: [{ datetime: "2026-07-03", close: "10" }, { datetime: "2025-12-31", close: "8" }] };
+  return syms.length === 1 ? series : Object.fromEntries(syms.map((s) => [s, series]));
+};
+
 const holding = (ticker: string): Holding => ({
   id: crypto.randomUUID(), ticker, type: "stock",
   quantity: 1, priceUsd: 0, valueUsd: 0, asOf: "2026-07-01",
@@ -21,7 +28,7 @@ describe("prefetchQuotes", () => {
     const tickers = Array.from({ length: 10 }, (_, i) => `S${i + 1}`);
     await store.putDraft({ ...emptyDraft(), holdings: tickers.map(holding), updatedAt: "2026-07-01T00:00:00Z" });
 
-    let eodCalls = 0;
+    let eodCalls = 0, historyCalls = 0;
     vi.stubGlobal("fetch", vi.fn(async (url: string | URL) => {
       const u = String(url);
       if (u.includes("/eod")) {
@@ -29,6 +36,7 @@ describe("prefetchQuotes", () => {
         const syms = new URL(u).searchParams.get("symbol")!.split(",");
         return json(Object.fromEntries(syms.map((s) => [s, { symbol: s, currency: "USD", datetime: "2026-07-03", close: "10" }])));
       }
+      if (u.includes("/time_series")) { historyCalls++; return json(historyBody(u)); }
       if (u.includes("/exchange_rate")) return json({ symbol: "USD/SGD", rate: 1.3, timestamp: 1782115200 });
       throw new Error(`unexpected fetch: ${u}`);
     }));
@@ -38,15 +46,19 @@ describe("prefetchQuotes", () => {
     const waits: number[] = [];
     const result = await prefetchQuotes(store, market, { wait: async (ms) => { waits.push(ms); } });
 
-    expect(result.rounds).toBe(2);        // 10 stocks ÷ cap 7 → two rounds
-    expect(waits).toHaveLength(1);        // paced once, between the rounds
+    expect(result.rounds).toBe(4);        // 10 stocks ÷ cap 7 → two rounds of quotes, then two of history
+    expect(waits).toHaveLength(3);        // paced between every round, including quotes → history
     expect(eodCalls).toBe(2);
+    expect(historyCalls).toBe(2);
 
     // The cache is now warm: a full refresh resolves everything with no new fetch.
     const after = await market.quoteBatch(tickers.map((t) => ({ symbol: t, type: "stock" as const })));
     expect(after.quotes).toHaveLength(10);
     expect(after.rateLimited).toEqual([]);
     expect(eodCalls).toBe(2);             // unchanged → served from cache
+    const history = await market.performanceBatch(tickers.map((t) => ({ symbol: t, type: "stock" as const })));
+    expect(history.performance).toHaveLength(10);
+    expect(historyCalls).toBe(2);         // the heatmap's history is warm too
   });
 
   it("warms only FX (no equity fetches) when there are no holdings", async () => {
@@ -80,6 +92,7 @@ describe("prefetchQuotes", () => {
         eodSymbols = new URL(u).searchParams.get("symbol")!.split(",");
         return json(Object.fromEntries(eodSymbols.map((s) => [s, { symbol: s, currency: "USD", datetime: "2026-07-03", close: "10" }])));
       }
+      if (u.includes("/time_series")) return json(historyBody(u));
       if (u.includes("/exchange_rate")) return json({ symbol: "USD/SGD", rate: 1.3, timestamp: 1782115200 });
       throw new Error(`unexpected fetch: ${u}`);
     }));

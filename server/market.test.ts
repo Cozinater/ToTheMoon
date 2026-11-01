@@ -244,3 +244,59 @@ describe("search", () => {
     });
   });
 });
+
+describe("performanceBatch (price history for the heatmap)", () => {
+  const series = (currency = "USD") => ({
+    meta: { currency },
+    values: [ // newest first, as Twelve Data returns them
+      { datetime: "2026-10-30", close: "150" },
+      { datetime: "2025-12-31", close: "120" },
+      { datetime: "2025-10-30", close: "100" },
+    ],
+  });
+
+  it("turns a year of equity closes into latest + YTD + YoY baselines and caches them for the day", async () => {
+    let calls = 0;
+    let requested: URL | undefined;
+    vi.stubGlobal("fetch", vi.fn(async (url: string | URL) => {
+      calls++;
+      requested = new URL(String(url));
+      return json({ AAPL: series(), D05: series("SGD") });
+    }));
+    const c = client();
+    const res = await c.performanceBatch([{ symbol: "aapl", type: "stock" }, { symbol: "D05", type: "stock" }]);
+    expect(requested?.pathname).toBe("/time_series");
+    expect(requested?.searchParams.get("interval")).toBe("1day");
+    expect(res.performance).toEqual([{
+      symbol: "AAPL", type: "stock",
+      last: { date: "2026-10-30", close: 150 },
+      ytd: { date: "2025-12-31", close: 120 },
+      yoy: { date: "2025-10-30", close: 100 },
+    }]);
+    expect(res.failed).toEqual(["D05"]); // non-USD listing
+    await c.performanceBatch([{ symbol: "AAPL", type: "stock" }]);
+    expect(calls).toBe(1); // second call served from the day cache
+  });
+
+  it("reports a rate limit sent in the response body as retryable", async () => {
+    stubFetch({ "/time_series": { code: 429, status: "error", message: "out of credits" } });
+    const res = await client().performanceBatch([{ symbol: "AAPL", type: "stock" }, { symbol: "MSFT", type: "stock" }]);
+    expect(res.performance).toEqual([]);
+    expect(res.rateLimited.sort()).toEqual(["AAPL", "MSFT"]);
+  });
+
+  it("reads crypto history from CoinGecko's daily market chart", async () => {
+    const ms = (iso: string) => Date.parse(`${iso}T00:00:00Z`);
+    stubFetch({
+      "/search?query=BTC": { coins: [{ id: "bitcoin", symbol: "btc" }] },
+      "/coins/bitcoin/market_chart": { prices: [[ms("2025-11-02"), 70000], [ms("2025-12-31"), 90000], [ms("2026-11-01"), 105000]] },
+    });
+    const res = await client().performanceBatch([{ symbol: "BTC", type: "crypto" }]);
+    expect(res.performance[0]).toMatchObject({
+      symbol: "BTC",
+      last: { date: "2026-11-01", close: 105000 },
+      ytd: { date: "2025-12-31", close: 90000 },
+      yoy: { date: "2025-11-02", close: 70000 },
+    });
+  });
+});

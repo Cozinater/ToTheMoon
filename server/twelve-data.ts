@@ -1,3 +1,4 @@
+import type { PricePoint } from "../shared/performance.ts";
 import { MarketError, SEARCH_LIMIT, type Fx } from "./market.ts";
 
 const BASE = "https://api.twelvedata.com";
@@ -37,6 +38,43 @@ export async function tdEodBatch(key: string, symbols: string[]): Promise<Map<st
   for (const s of upper) {
     const q = toQuote((body as Record<string, EodPayload>)[s] ?? {});
     if (q) out.set(s, q);
+  }
+  return out;
+}
+
+type TimeSeriesPayload = {
+  meta?: { currency?: string };
+  values?: { datetime?: string; close?: string }[];
+  code?: number; status?: string; message?: string;
+};
+
+function toHistory(p: TimeSeriesPayload): PricePoint[] | null {
+  if (p.status === "error" || !p.values?.length) return null;
+  if (p.meta?.currency && p.meta.currency !== "USD") return null; // only USD-quoted tickers supported
+  return p.values
+    .filter((v) => v.datetime && v.close)
+    .map((v) => ({ date: v.datetime!.slice(0, 10), close: Number(v.close) }));
+}
+
+/**
+ * Daily closes from `start` to today for all symbols in one request. Twelve Data charges
+ * 1 credit per symbol however many bars come back, so a year of history costs the same
+ * as one end-of-day quote.
+ */
+export async function tdDailyHistory(key: string, symbols: string[], start: string): Promise<Map<string, PricePoint[]>> {
+  const upper = symbols.map((s) => s.toUpperCase());
+  const body = await get("/time_series", {
+    symbol: upper.join(","), interval: "1day", start_date: start, outputsize: "5000",
+  }, key) as Record<string, TimeSeriesPayload> | TimeSeriesPayload;
+  // The free tier sometimes reports an exhausted credit budget in the body rather than as HTTP 429.
+  if ((body as TimeSeriesPayload).code === 429) {
+    throw new MarketError("RATE_LIMITED", "Twelve Data rate limit reached — try again shortly");
+  }
+  const out = new Map<string, PricePoint[]>();
+  for (const s of upper) {
+    const payload = upper.length === 1 ? body as TimeSeriesPayload : (body as Record<string, TimeSeriesPayload>)[s] ?? {};
+    const history = toHistory(payload);
+    if (history) out.set(s, history);
   }
   return out;
 }

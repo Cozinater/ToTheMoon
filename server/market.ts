@@ -1,7 +1,8 @@
+import { historyStart, pickBaselines, type PerformanceBatch, type Performance, type PricePoint } from "../shared/performance.ts";
 import type { QuotableType } from "../shared/schema.ts";
-import { cgQuotes, cgSearch } from "./coingecko.ts";
+import { cgDailyHistory, cgQuotes, cgSearch } from "./coingecko.ts";
 import { MemoryDayCache, type DayCache } from "./quote-cache.ts";
-import { tdEodBatch, tdFx, tdSymbolSearch } from "./twelve-data.ts";
+import { tdDailyHistory, tdEodBatch, tdFx, tdSymbolSearch } from "./twelve-data.ts";
 
 /** Max combined search results returned to the client (also the per-source fetch size). */
 export const SEARCH_LIMIT = 12;
@@ -16,6 +17,7 @@ export const SEARCH_LIMIT = 12;
 export const EQUITY_PER_MIN_CAP = 7;
 
 const quoteCacheKey = (symbol: string, type: QuotableType) => `Q:${type}:${symbol.toUpperCase()}`;
+const performanceCacheKey = (symbol: string, type: QuotableType) => `P:${type}:${symbol.toUpperCase()}`;
 const FX_CACHE_KEY = "FX:USD/SGD";
 
 /** Today's date (UTC) as YYYY-MM-DD — the single as-of stamp shared by every quote provider. */
@@ -45,9 +47,14 @@ function interleave<T>(a: T[], b: T[]): T[] {
 
 export type QuoteBatchResult = { quotes: Quote[]; failed: string[]; rateLimited: string[] };
 
+type SymbolReq = { symbol: string; type: QuotableType };
+type Resolved<V> = { values: V[]; failed: string[]; rateLimited: string[] };
+
 export interface MarketClient {
   quote(symbol: string, type: QuotableType): Promise<Quote>;
   quoteBatch(reqs: { symbol: string; type: QuotableType }[]): Promise<QuoteBatchResult>;
+  /** Latest close plus YTD / year-on-year baselines; same caching and rate-limit rules as quoteBatch. */
+  performanceBatch(reqs: { symbol: string; type: QuotableType }[]): Promise<PerformanceBatch>;
   fx(): Promise<Fx>;
   search(q: string): Promise<SearchResult[]>;
 }
@@ -59,23 +66,25 @@ export function createMarketClient(
    * Resolve one provider's requests cache-first: serve same-day cache hits for free,
    * fetch up to `cap` of the rest, cache what came back, and report anything over the
    * cap — or a rate-limit response — as `rateLimited` (retryable) rather than failing.
+   * `fetchFresh` returns the per-symbol payload; `null` means the symbol has no data.
    */
-  async function resolve(
-    reqs: { symbol: string; type: QuotableType }[],
+  async function resolve<V extends SymbolReq>(
+    reqs: SymbolReq[],
     day: string,
     cap: number,
-    fetchFresh: (symbols: string[]) => Promise<Map<string, { priceUsd: number; asOf: string }>>,
-  ): Promise<QuoteBatchResult> {
-    const quotes: Quote[] = [];
+    cacheKey: (symbol: string, type: QuotableType) => string,
+    fetchFresh: (symbols: string[]) => Promise<Map<string, Omit<V, keyof SymbolReq> | null>>,
+  ): Promise<Resolved<V>> {
+    const values: V[] = [];
     const failed: string[] = [];
     const rateLimited: string[] = [];
-    if (reqs.length === 0) return { quotes, failed, rateLimited };
+    if (reqs.length === 0) return { values, failed, rateLimited };
 
-    const cached = await cache.get<Quote>(reqs.map((r) => quoteCacheKey(r.symbol, r.type)), day);
-    const uncached: { symbol: string; type: QuotableType }[] = [];
+    const cached = await cache.get<V>(reqs.map((r) => cacheKey(r.symbol, r.type)), day);
+    const uncached: SymbolReq[] = [];
     for (const r of reqs) {
-      const hit = cached.get(quoteCacheKey(r.symbol, r.type));
-      if (hit) quotes.push(hit);
+      const hit = cached.get(cacheKey(r.symbol, r.type));
+      if (hit) values.push(hit);
       else uncached.push(r);
     }
 
@@ -84,17 +93,17 @@ export function createMarketClient(
     if (toFetch.length > 0) {
       try {
         const bySymbol = await fetchFresh(toFetch.map((r) => r.symbol));
-        const fresh: Quote[] = [];
+        const fresh: V[] = [];
         for (const r of toFetch) {
           const hit = bySymbol.get(r.symbol.toUpperCase());
           if (hit) {
-            const q: Quote = { symbol: r.symbol.toUpperCase(), type: r.type, ...hit };
-            quotes.push(q);
-            fresh.push(q);
+            const v = { symbol: r.symbol.toUpperCase(), type: r.type, ...hit } as V;
+            values.push(v);
+            fresh.push(v);
           } else failed.push(r.symbol.toUpperCase());
         }
         if (fresh.length > 0) {
-          await cache.put(fresh.map((q) => ({ key: quoteCacheKey(q.symbol, q.type), value: q })), day);
+          await cache.put(fresh.map((v) => ({ key: cacheKey(v.symbol, v.type), value: v })), day);
         }
       } catch (err) {
         if (err instanceof MarketError && err.code === "RATE_LIMITED") {
@@ -102,24 +111,45 @@ export function createMarketClient(
         } else throw err;
       }
     }
-    return { quotes, failed, rateLimited };
+    return { values, failed, rateLimited };
   }
 
-  async function quoteBatch(reqs: { symbol: string; type: QuotableType }[]): Promise<QuoteBatchResult> {
+  /**
+   * Resolve equities and crypto separately. Crypto (CoinGecko) is a separate provider
+   * with its own limits, so an equity rate-limit never wipes out the crypto results too.
+   */
+  async function resolveBoth<V extends SymbolReq>(
+    reqs: SymbolReq[],
+    cacheKey: (symbol: string, type: QuotableType) => string,
+    fetchEquities: (symbols: string[]) => Promise<Map<string, Omit<V, keyof SymbolReq> | null>>,
+    fetchCryptos: (symbols: string[]) => Promise<Map<string, Omit<V, keyof SymbolReq> | null>>,
+  ): Promise<Resolved<V>> {
     const day = todayIso();
-    // Crypto (CoinGecko) is a separate provider with its own limits, so it is resolved
-    // independently — an equity rate-limit no longer wipes out the crypto prices too.
-    const equities = await resolve(
-      reqs.filter((r) => r.type !== "crypto"), day, EQUITY_PER_MIN_CAP,
-      (symbols) => tdEodBatch(twelveDataKey, symbols));
-    const cryptos = await resolve(
-      reqs.filter((r) => r.type === "crypto"), day, Infinity,
-      (symbols) => cgQuotes(symbols));
+    const equities = await resolve<V>(
+      reqs.filter((r) => r.type !== "crypto"), day, EQUITY_PER_MIN_CAP, cacheKey, fetchEquities);
+    const cryptos = await resolve<V>(
+      reqs.filter((r) => r.type === "crypto"), day, Infinity, cacheKey, fetchCryptos);
     return {
-      quotes: [...equities.quotes, ...cryptos.quotes],
+      values: [...equities.values, ...cryptos.values],
       failed: [...equities.failed, ...cryptos.failed],
       rateLimited: [...equities.rateLimited, ...cryptos.rateLimited],
     };
+  }
+
+  async function quoteBatch(reqs: SymbolReq[]): Promise<QuoteBatchResult> {
+    const { values, failed, rateLimited } = await resolveBoth<Quote>(reqs, quoteCacheKey,
+      (symbols) => tdEodBatch(twelveDataKey, symbols),
+      (symbols) => cgQuotes(symbols));
+    return { quotes: values, failed, rateLimited };
+  }
+
+  async function performanceBatch(reqs: SymbolReq[]): Promise<PerformanceBatch> {
+    const toBaselines = async (pending: Promise<Map<string, PricePoint[]>>) =>
+      new Map([...await pending].map(([symbol, bars]) => [symbol, pickBaselines(bars)]));
+    const { values, failed, rateLimited } = await resolveBoth<Performance>(reqs, performanceCacheKey,
+      (symbols) => toBaselines(tdDailyHistory(twelveDataKey, symbols, historyStart(todayIso()))),
+      (symbols) => toBaselines(cgDailyHistory(symbols)));
+    return { performance: values, failed, rateLimited };
   }
 
   async function fx(): Promise<Fx> {
@@ -154,6 +184,7 @@ export function createMarketClient(
 
   return {
     quoteBatch,
+    performanceBatch,
     search,
     fx,
     async quote(symbol, type) {

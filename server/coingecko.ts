@@ -1,3 +1,4 @@
+import type { PricePoint } from "../shared/performance.ts";
 import { MarketError, SEARCH_LIMIT, todayIso } from "./market.ts";
 
 const BASE = "https://api.coingecko.com/api/v3";
@@ -32,6 +33,24 @@ export async function cgQuotes(symbols: string[]): Promise<Map<string, { priceUs
     const usd = prices[id]?.usd;
     if (typeof usd === "number") out.set(symbol, { priceUsd: usd, asOf: today });
   }
+  return out;
+}
+
+/**
+ * A year of daily closes per symbol, one market_chart call each. 365 days is the most the
+ * keyless API serves (366 is refused), which leaves the oldest bar a day short of "one year
+ * ago" — `pickBaselines` accepts it as the year-on-year baseline.
+ */
+export async function cgDailyHistory(symbols: string[]): Promise<Map<string, PricePoint[]>> {
+  const out = new Map<string, PricePoint[]>();
+  await Promise.all(symbols.map(async (s) => {
+    const id = await resolveId(s);
+    if (!id) return;
+    const body = await get(`/coins/${id}/market_chart?vs_currency=usd&days=365&interval=daily`) as
+      { prices?: [number, number][] };
+    const history = (body.prices ?? []).map(([ms, close]) => ({ date: new Date(ms).toISOString().slice(0, 10), close }));
+    if (history.length > 0) out.set(s.toUpperCase(), history);
+  }));
   return out;
 }
 
