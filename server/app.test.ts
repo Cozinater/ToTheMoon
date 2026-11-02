@@ -14,6 +14,14 @@ const stubMarket = (over: Partial<MarketClient> = {}): MarketClient => ({
     failed: [],
     rateLimited: [],
   })),
+  performanceBatch: vi.fn(async (reqs: Array<{ symbol: string; type: QuotableType }>) => ({
+    performance: reqs.map((r) => ({
+      symbol: r.symbol, type: r.type, last: { date: "2026-07-01", close: 110 },
+      ytd: { date: "2025-12-31", close: 100 }, yoy: null,
+    })),
+    failed: [],
+    rateLimited: [],
+  })),
   fx: vi.fn(async () => ({ pair: "USD/SGD" as const, rate: 1.3, asOf: "2026-07-01" })),
   search: vi.fn(async () => []),
   ...over,
@@ -251,6 +259,14 @@ describe("quote / fx / reset", () => {
     const app = makeApp();
     expect((await app.request("/api/quote?symbol=IBKR%20USD&type=cash")).status).toBe(400);
     expect((await app.request("/api/quote?symbols=VOO:etf,IBKR:cash")).status).toBe(400);
+  });
+
+  it("performance batch returns baselines and validates its symbols", async () => {
+    const app = makeApp();
+    const batch = await json(await app.request("/api/performance?symbols=VOO:etf,BTC:crypto"));
+    expect(batch.performance.map((p: { symbol: string }) => p.symbol)).toEqual(["VOO", "BTC"]);
+    expect((await app.request("/api/performance?symbols=VOO:etf,IBKR:cash")).status).toBe(400);
+    expect((await app.request("/api/performance")).status).toBe(400);
   });
 
   it("reset wipes everything", async () => {

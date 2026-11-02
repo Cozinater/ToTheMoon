@@ -22,12 +22,14 @@ resource "aws_lambda_function" "prefetch" {
   }
 }
 
-# Daily at 23:00 UTC on weekdays = ~07:00 SGT, a few hours after the 16:00 ET close
-# so end-of-day bars have settled. Weekends are skipped (no new close).
+# Daily at 00:30 UTC = 08:30 SGT, 3.5-4.5 hours after the 16:00 ET close so end-of-day
+# bars have settled. It must run just after midnight UTC: the day cache is keyed by the
+# UTC date, so anything warmed before midnight expires at 00:00 UTC (08:00 SGT). Runs on
+# weekends too, because the cache still rolls over daily even when there is no new close.
 resource "aws_cloudwatch_event_rule" "prefetch_daily" {
   name                = "tothemoon-prefetch-daily"
   description         = "Warm the end-of-day price cache after US market close"
-  schedule_expression = "cron(0 23 ? * MON-FRI *)"
+  schedule_expression = "cron(30 0 * * ? *)"
 }
 
 resource "aws_cloudwatch_event_target" "prefetch" {

@@ -167,18 +167,25 @@ export function createApp({ store, market, originSecret, auth }: AppDeps) {
     return c.json({ results: await market.search(parsed.data) });
   });
 
+  /** Parses `symbols=AAPL:stock,BTC:crypto`; returns the bad entry as a string on failure. */
+  const parseSymbols = (symbols: string): { symbol: string; type: QuotableType }[] | string => {
+    const reqs: { symbol: string; type: QuotableType }[] = [];
+    for (const pair of symbols.split(",")) {
+      const [s, t] = pair.split(":");
+      const parsedType = quotableTypeSchema.safeParse(t);
+      if (!s || !parsedType.success) return pair;
+      reqs.push({ symbol: s, type: parsedType.data });
+    }
+    return reqs;
+  };
+  const badSymbols = (c: Context, pair: string) =>
+    c.json({ error: "VALIDATION", message: `Bad symbols entry '${pair}'` }, 400);
+
   api.get("/quote", async (c) => {
     const { symbol, type, symbols } = c.req.query();
     if (symbols) {
-      const reqs: { symbol: string; type: QuotableType }[] = [];
-      for (const pair of symbols.split(",")) {
-        const [s, t] = pair.split(":");
-        const parsedType = quotableTypeSchema.safeParse(t);
-        if (!s || !parsedType.success) {
-          return c.json({ error: "VALIDATION", message: `Bad symbols entry '${pair}'` }, 400);
-        }
-        reqs.push({ symbol: s, type: parsedType.data });
-      }
+      const reqs = parseSymbols(symbols);
+      if (typeof reqs === "string") return badSymbols(c, reqs);
       return c.json(await market.quoteBatch(reqs));
     }
     const parsedType = quotableTypeSchema.safeParse(type);
@@ -186,6 +193,12 @@ export function createApp({ store, market, originSecret, auth }: AppDeps) {
       return c.json({ error: "VALIDATION", message: "symbol and type=stock|etf|crypto required" }, 400);
     }
     return c.json(await market.quote(symbol, parsedType.data));
+  });
+
+  api.get("/performance", async (c) => {
+    const reqs = parseSymbols(c.req.query("symbols") ?? "");
+    if (typeof reqs === "string") return badSymbols(c, reqs);
+    return c.json(await market.performanceBatch(reqs));
   });
 
   api.get("/fx", async (c) => c.json(await market.fx()));

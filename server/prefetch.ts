@@ -25,7 +25,8 @@ function isInstrument(h: Holding): h is Holding & { type: QuotableType } {
  *
  * Each round calls `quoteBatch`, which serves already-cached symbols for free and
  * fetches up to the per-minute cap of the rest — so repeated rounds fill the cache
- * incrementally. Between rounds we wait out Twelve Data's per-minute credit window,
+ * incrementally. The heatmap's price history (`performanceBatch`) is warmed the same
+ * way once the quotes are done. Between rounds we wait out Twelve Data's per-minute credit window,
  * letting a large portfolio load overnight without ever tripping a 429. The daily
  * FX rate is warmed too. Meant to run once daily after the US market close; the
  * manual "Refresh prices" button remains the fallback for stragglers.
@@ -44,19 +45,27 @@ export async function prefetchQuotes(
     .filter(isInstrument)
     .map((h) => ({ symbol: h.ticker, type: h.type }));
 
-  let remaining = all;
   let rounds = 0;
-  while (remaining.length > 0 && rounds < maxRounds) {
-    if (rounds > 0) await wait(sleepMs); // respect the per-minute credit window between rounds
-    rounds++;
-    const { rateLimited } = await market.quoteBatch(remaining);
-    const stillLimited = new Set(rateLimited);
-    // Drop everything that resolved or hard-failed (bad ticker); only rate-limited symbols retry.
-    remaining = remaining.filter((r) => stillLimited.has(r.symbol.toUpperCase()));
+  /** Repeats `fetchBatch` until nothing is rate-limited, waiting out the credit window between rounds. */
+  async function drain(fetchBatch: typeof market.quoteBatch | typeof market.performanceBatch) {
+    let remaining = all;
+    while (remaining.length > 0 && rounds < maxRounds) {
+      if (rounds > 0) await wait(sleepMs); // respect the per-minute credit window between rounds
+      rounds++;
+      const { rateLimited } = await fetchBatch(remaining);
+      const stillLimited = new Set(rateLimited);
+      // Drop everything that resolved or hard-failed (bad ticker); only rate-limited symbols retry.
+      remaining = remaining.filter((r) => stillLimited.has(r.symbol.toUpperCase()));
+    }
+    return remaining.length;
   }
 
+  const pending = await drain(market.quoteBatch);
+  // The portfolio heatmap's YTD / year-on-year baselines, warmed after the prices that matter more.
+  await drain(market.performanceBatch);
+
   await market.fx(); // warm the daily FX rate as well
-  return { rounds, resolved: all.length - remaining.length, pending: remaining.length };
+  return { rounds, resolved: all.length - pending, pending };
 }
 
 /** EventBridge-triggered Lambda entry point (no HTTP event; see infra/prefetch.tf). */
