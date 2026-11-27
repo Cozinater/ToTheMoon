@@ -79,7 +79,7 @@ export function SectionCard(props: {
                   </div>
                   {e.principalSgd !== undefined && e.percent !== undefined && (
                     <div className="mt-0.5 text-xs text-muted-foreground/80 tabular-nums">
-                      {sgd(e.principalSgd)} × {e.percent}%
+                      {sgd(e.principalSgd)} × {e.percent}%{e.from && ` · from ${dateLabel(e.from)}`}
                     </div>
                   )}
                 </div>
