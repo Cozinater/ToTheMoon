@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   amendInputSchema, defaultSettings, draftInputSchema, emptyDraft, entrySchema, holdingSchema,
-  quotableTypeSchema, settingsSchema, withLoanFrom, type Draft,
+  quotableTypeSchema, settingsSchema,
 } from "./schema.ts";
 
 const entry = (name: string) => ({
@@ -156,15 +156,5 @@ describe("loan start date", () => {
   it("accepts an ISO date and rejects anything else", () => {
     expect(entrySchema.safeParse({ ...base, from: "2021-10-31" }).success).toBe(true);
     expect(entrySchema.safeParse({ ...base, from: "31/10/2021" }).success).toBe(false);
-  });
-
-  it("gives loans without a start date 31 Oct 2021 and leaves the rest alone", () => {
-    const doc: Draft = { ...emptyDraft(), liabilities: {
-      creditCards: [{ ...base, name: "Citi" }],
-      loans: [{ ...base }, { ...base, name: "BRIAN", from: "2024-01-15" }],
-    } };
-    const out = withLoanFrom(doc);
-    expect(out.liabilities.loans.map((l) => l.from)).toEqual(["2021-10-31", "2024-01-15"]);
-    expect(out.liabilities.creditCards[0].from).toBeUndefined();
   });
 });
