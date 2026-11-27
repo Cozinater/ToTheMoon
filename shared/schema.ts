@@ -80,15 +80,6 @@ export const liabilitiesSchema = z.object({
 });
 export type Liabilities = z.infer<typeof liabilitiesSchema>;
 
-/** Loans saved before the start date existed all started on this day. */
-export const LEGACY_LOAN_FROM = "2021-10-31";
-
-/** Gives every loan that has no start date the legacy one. */
-export function withLoanFrom<T extends { liabilities: Liabilities }>(doc: T): T {
-  const loans = doc.liabilities.loans.map((l) => (l.from ? l : { ...l, from: LEGACY_LOAN_FROM }));
-  return { ...doc, liabilities: { ...doc.liabilities, loans } };
-}
-
 export const draftInputSchema = z.object({
   holdings: z.array(holdingSchema),
   assets: assetsSchema,

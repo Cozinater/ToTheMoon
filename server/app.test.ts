@@ -149,26 +149,6 @@ describe("close month", () => {
   });
 });
 
-describe("loan start date", () => {
-  it("serves loans saved without one as starting 31 Oct 2021, in the draft and in closed months", async () => {
-    const app = makeApp();
-    await app.request("/api/draft", jsonReq("PUT", sampleDraft()));
-    await app.request("/api/close", jsonReq("POST", { snapshotDate: "2026-06-26" }));
-    const draft = await json(await app.request("/api/draft"));
-    expect(draft.liabilities.loans[0].from).toBe("2021-10-31");
-    const snap = await json(await app.request("/api/snapshots/2026-06"));
-    expect(snap.liabilities.loans[0].from).toBe("2021-10-31");
-  });
-
-  it("keeps a start date that was saved", async () => {
-    const app = makeApp();
-    const d = sampleDraft();
-    d.liabilities.loans[0] = { ...d.liabilities.loans[0], from: "2024-01-15" };
-    await app.request("/api/draft", jsonReq("PUT", d));
-    expect((await json(await app.request("/api/draft"))).liabilities.loans[0].from).toBe("2024-01-15");
-  });
-});
-
 describe("snapshots", () => {
   it("lists summaries newest first and serves full detail", async () => {
     const app = makeApp();

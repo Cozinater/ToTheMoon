@@ -3,7 +3,7 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { z } from "zod";
 import {
   amendInputSchema, closeInputSchema, defaultSettings, draftInputSchema,
-  emptyDraft, quotableTypeSchema, settingsSchema, withLoanFrom, type QuotableType, type Snapshot,
+  emptyDraft, quotableTypeSchema, settingsSchema, type QuotableType, type Snapshot,
 } from "../shared/schema.ts";
 import { computeTotals } from "../shared/totals.ts";
 import {
@@ -76,10 +76,7 @@ export function createApp({ store, market, originSecret, auth }: AppDeps) {
     return c.json({ ok: true });
   });
 
-  api.get("/draft", async (c) => {
-    const draft = await store.getDraft();
-    return c.json(draft ? withLoanFrom(draft) : emptyDraft());
-  });
+  api.get("/draft", async (c) => c.json(await store.getDraft() ?? emptyDraft()));
 
   api.put("/draft", async (c) => {
     const parsed = draftInputSchema.safeParse(await c.req.json().catch(() => null));
@@ -140,7 +137,7 @@ export function createApp({ store, market, originSecret, auth }: AppDeps) {
 
   api.get("/snapshots/:month", async (c) => {
     const snap = await store.getSnapshot(c.req.param("month"));
-    return snap ? c.json(withLoanFrom(snap)) : c.json({ error: "NOT_FOUND", message: "No such snapshot" }, 404);
+    return snap ? c.json(snap) : c.json({ error: "NOT_FOUND", message: "No such snapshot" }, 404);
   });
 
   api.put("/snapshots/:month", async (c) => {
