@@ -78,6 +78,15 @@ function behavesLikeAStore(make: () => SnapshotStore) {
     expect(await store.getSettings()).toBeNull();
   });
 
+  it("income: null until put, then returned; reset clears it without counting it", async () => {
+    expect(await store.getIncome()).toBeNull();
+    const income = { entries: [{ id: crypto.randomUUID(), date: "2021-07-05", amountSgd: 4600 }] };
+    await store.putIncome(income);
+    expect(await store.getIncome()).toEqual(income);
+    expect(await store.reset()).toBe(0);
+    expect(await store.getIncome()).toBeNull();
+  });
+
   it("reset excludes settings from its count", async () => {
     await store.putDraft(emptyDraft());
     await store.createSnapshot(snap("2026-06"));

@@ -45,6 +45,28 @@ export function defaultSettings(): Settings {
   return { strategies: [...DEFAULT_STRATEGIES] };
 }
 
+export const INCOME_LIMIT = 200;
+
+export const incomeEntrySchema = z.object({
+  id: z.uuid(),
+  date: isoDate,
+  amountSgd: z.number().positive(),
+});
+export type IncomeEntry = z.infer<typeof incomeEntrySchema>;
+
+export const incomeSchema = z.object({
+  entries: z.array(incomeEntrySchema).max(INCOME_LIMIT),
+}).superRefine((income, ctx) => {
+  const seen = new Set<string>();
+  income.entries.forEach((e, i) => {
+    if (seen.has(e.date)) {
+      ctx.addIssue({ code: "custom", path: ["entries", i, "date"], message: `two rows share ${e.date}` });
+    }
+    seen.add(e.date);
+  });
+});
+export type Income = z.infer<typeof incomeSchema>;
+
 export const entrySchema = z.object({
   id: z.uuid(),
   name: z.string().min(1).max(60),

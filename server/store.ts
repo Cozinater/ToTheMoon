@@ -1,4 +1,4 @@
-import type { Draft, Settings, Snapshot } from "../shared/schema.ts";
+import type { Draft, Income, Settings, Snapshot } from "../shared/schema.ts";
 
 export interface SnapshotStore {
   getDraft(): Promise<Draft | null>;
@@ -11,6 +11,8 @@ export interface SnapshotStore {
   moveSnapshot(from: string, snap: Snapshot): Promise<boolean>;
   getSettings(): Promise<Settings | null>;
   putSettings(settings: Settings): Promise<void>;
+  getIncome(): Promise<Income | null>;
+  putIncome(income: Income): Promise<void>;
   reset(): Promise<number>;
 }
 
@@ -18,6 +20,7 @@ export class MemoryStore implements SnapshotStore {
   protected draft: Draft | null = null;
   protected snapshots = new Map<string, Snapshot>();
   protected settings: Settings | null = null;
+  protected income: Income | null = null;
 
   async getDraft() { return this.draft; }
   async putDraft(draft: Draft) { this.draft = draft; this.persist(); }
@@ -36,9 +39,12 @@ export class MemoryStore implements SnapshotStore {
   }
   async getSettings() { return this.settings; }
   async putSettings(settings: Settings) { this.settings = settings; this.persist(); }
+  async getIncome() { return this.income; }
+  async putIncome(income: Income) { this.income = income; this.persist(); }
   async reset() {
     const n = this.snapshots.size + (this.draft ? 1 : 0);
-    this.draft = null; this.snapshots.clear(); this.settings = null; this.persist(); return n;
+    this.draft = null; this.snapshots.clear(); this.settings = null; this.income = null;
+    this.persist(); return n;
   }
   protected persist() {} // no-op in memory; FileStore overrides
 }

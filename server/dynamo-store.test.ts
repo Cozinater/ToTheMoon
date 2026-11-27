@@ -13,6 +13,7 @@ const snap = (month: string): Snapshot => ({
 const PARTITION: { sk: string }[] = [
   { sk: "DRAFT", ...emptyDraft() },
   { sk: "SETTINGS", strategies: ["China"] },
+  { sk: "INCOME", entries: [{ id: "6c1f7d0e-3b9a-4c2e-8f1d-2a5b7c9e0f13", date: "2021-07-05", amountSgd: 4600 }] },
   { sk: "CACHE#Q:stock:AAPL", cacheKey: "Q:stock:AAPL", day: "2026-07-28", value: { priceUsd: 255 } },
   { sk: "CACHE#FX:USD/SGD", cacheKey: "FX:USD/SGD", day: "2026-07-28", value: 1.328 },
   { sk: "2026-06", ...snap("2026-06") },
@@ -60,7 +61,7 @@ function storeWith(doc: ReturnType<typeof fakeDoc>) {
 }
 
 describe("DynamoStore.listSnapshots", () => {
-  it("returns only month snapshots, never DRAFT / SETTINGS / CACHE# items", async () => {
+  it("returns only month snapshots, never DRAFT / SETTINGS / INCOME / CACHE# items", async () => {
     const store = storeWith(fakeDoc(false));
     const months = (await store.listSnapshots()).map((s) => s.month);
     expect(months).toEqual(["2026-06", "2026-05"]);
@@ -82,6 +83,7 @@ describe("DynamoStore.listSnapshots", () => {
     expect(keyConditionMatches("2026-06", input)).toBe(true);
     expect(keyConditionMatches("CACHE#Q:stock:AAPL", input)).toBe(false);
     expect(keyConditionMatches("SETTINGS", input)).toBe(false);
+    expect(keyConditionMatches("INCOME", input)).toBe(false);
     expect(keyConditionMatches("DRAFT", input)).toBe(false);
   });
 });
