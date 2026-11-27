@@ -53,6 +53,8 @@ export const entrySchema = z.object({
   // A loan from a friend who shares in the investments: balance = initial amount × percentage.
   principalSgd: z.number().nonnegative().optional(),
   percent: z.number().nonnegative().optional(),
+  // The date a loan started.
+  from: isoDate.optional(),
 }).superRefine((e, ctx) => {
   if (e.principalSgd === undefined && e.percent === undefined) return;
   if (e.principalSgd === undefined || e.percent === undefined) {
@@ -77,6 +79,15 @@ export const liabilitiesSchema = z.object({
   loans: z.array(entrySchema),
 });
 export type Liabilities = z.infer<typeof liabilitiesSchema>;
+
+/** Loans saved before the start date existed all started on this day. */
+export const LEGACY_LOAN_FROM = "2021-10-31";
+
+/** Gives every loan that has no start date the legacy one. */
+export function withLoanFrom<T extends { liabilities: Liabilities }>(doc: T): T {
+  const loans = doc.liabilities.loans.map((l) => (l.from ? l : { ...l, from: LEGACY_LOAN_FROM }));
+  return { ...doc, liabilities: { ...doc.liabilities, loans } };
+}
 
 export const draftInputSchema = z.object({
   holdings: z.array(holdingSchema),
