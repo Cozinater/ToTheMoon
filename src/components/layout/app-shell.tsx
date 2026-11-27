@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import {
-  ChartPie, Clock, LayoutGrid, PanelLeftClose, PanelLeftOpen, Rocket, Settings, Wallet,
+  ChartPie, Clock, HandCoins, LayoutGrid, PanelLeftClose, PanelLeftOpen, Rocket, Settings, Wallet,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ const items = [
   { to: "/", label: "Dashboard", icon: LayoutGrid },
   { to: "/portfolio", label: "Portfolio", icon: ChartPie },
   { to: "/assets", label: "Assets", icon: Wallet },
+  { to: "/income", label: "Income", icon: HandCoins },
   { to: "/history", label: "History", icon: Clock },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
@@ -100,7 +101,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </Link>
       </header>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-border/60 bg-sidebar/90 backdrop-blur md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border/60 bg-sidebar/90 backdrop-blur md:hidden">
         {items
           .filter(({ to }) => to !== "/settings")
           .map(({ to, label, icon: Icon }) => (
