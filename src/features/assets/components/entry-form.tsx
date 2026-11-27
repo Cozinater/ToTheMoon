@@ -23,6 +23,7 @@ export function EntryForm(props: {
   const [asOf, setAsOf] = useState("");
   const [principalStr, setPrincipalStr] = useState("");
   const [percentStr, setPercentStr] = useState("");
+  const [from, setFrom] = useState("");
 
   useEffect(() => {
     if (!props.open) return;
@@ -31,6 +32,7 @@ export function EntryForm(props: {
     setAsOf(props.initial?.asOf ?? "");
     setPrincipalStr(props.initial?.principalSgd !== undefined ? String(props.initial.principalSgd) : "");
     setPercentStr(props.initial?.percent !== undefined ? String(props.initial.percent) : "");
+    setFrom(props.initial?.from ?? "");
   }, [props.open, props.initial]);
 
   // Changing the amount means the figure is fresh, so it is as of today.
@@ -44,7 +46,8 @@ export function EntryForm(props: {
   const percent = Number(percentStr);
   const loanReady = filled(principalStr) && filled(percentStr);
   const balance = props.loan ? (loanReady ? loanOwed(principal, percent) : NaN) : Number(balanceStr);
-  const canSave = name.trim() !== "" && asOf !== "" && Number.isFinite(balance) && balance >= 0;
+  const canSave = name.trim() !== "" && asOf !== "" && (!props.loan || from !== "")
+    && Number.isFinite(balance) && balance >= 0;
   // An old loan saved as a plain balance, before initial amount × percentage existed.
   const legacyBalance = props.loan && props.initial && props.initial.principalSgd === undefined
     ? props.initial.balanceSgd : undefined;
@@ -77,14 +80,18 @@ export function EntryForm(props: {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
+                <Label htmlFor="entry-from">From</Label>
+                <DatePicker id="entry-from" value={from} onChange={setFrom} />
+              </div>
+              <div className="grid gap-1.5">
                 <Label htmlFor="entry-asof">As-of date</Label>
                 <DatePicker id="entry-asof" value={asOf} onChange={setAsOf} />
               </div>
-              <div className="grid gap-1.5">
-                <span className="text-sm font-medium">Amount owed</span>
-                <div className="flex h-9 items-center font-display text-lg font-semibold tabular-nums" aria-live="polite">
-                  {loanReady ? sgd(balance) : "—"}
-                </div>
+            </div>
+            <div className="grid gap-1.5">
+              <span className="text-sm font-medium">Amount owed</span>
+              <div className="flex h-9 items-center font-display text-lg font-semibold tabular-nums" aria-live="polite">
+                {loanReady ? sgd(balance) : "—"}
               </div>
             </div>
             {legacyBalance !== undefined && (
@@ -116,7 +123,7 @@ export function EntryForm(props: {
                 name: name.trim(),
                 balanceSgd: round2(balance),
                 asOf,
-                ...(props.loan ? { principalSgd: principal, percent } : {}),
+                ...(props.loan ? { principalSgd: principal, percent, from } : {}),
               });
               props.onOpenChange(false);
             }}
