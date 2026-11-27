@@ -3,15 +3,15 @@ import {
   BatchWriteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, TransactWriteCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { monthSchema } from "../shared/schema.ts";
-import type { Draft, Settings, Snapshot } from "../shared/schema.ts";
+import type { Draft, Income, Settings, Snapshot } from "../shared/schema.ts";
 import type { SnapshotStore } from "./store.ts";
 
 const PK = "USER";
 
 /**
- * The partition holds more than snapshots: `sk = "DRAFT"`, `sk = "SETTINGS"` and the
+ * The partition holds more than snapshots: `sk = "DRAFT"`, `sk = "SETTINGS"`, `sk = "INCOME"` and the
  * price cache's `sk = "CACHE#<key>"`. Snapshot keys are the "YYYY-MM" months, and every
- * one of them falls inside this range while the others (D/S/C > "9") sort outside it.
+ * one of them falls inside this range while the others (D/S/I/C > "9") sort outside it.
  */
 const MONTH_SK_LO = "0000-00";
 const MONTH_SK_HI = "9999-99";
@@ -55,6 +55,17 @@ export class DynamoStore implements SnapshotStore {
 
   async putSettings(settings: Settings): Promise<void> {
     await this.doc.send(new PutCommand({ TableName: this.table, Item: { pk: PK, sk: "SETTINGS", ...settings } }));
+  }
+
+  async getIncome(): Promise<Income | null> {
+    const res = await this.doc.send(new GetCommand({ TableName: this.table, Key: { pk: PK, sk: "INCOME" } }));
+    if (!res.Item) return null;
+    const { pk: _pk, sk: _sk, ...income } = res.Item;
+    return income as Income;
+  }
+
+  async putIncome(income: Income): Promise<void> {
+    await this.doc.send(new PutCommand({ TableName: this.table, Item: { pk: PK, sk: "INCOME", ...income } }));
   }
 
   async getSnapshot(month: string): Promise<Snapshot | null> {
@@ -123,6 +134,6 @@ export class DynamoStore implements SnapshotStore {
         RequestItems: { [this.table]: keys.slice(i, i + 25).map((Key) => ({ DeleteRequest: { Key } })) },
       }));
     }
-    return keys.filter((k) => k.sk !== "SETTINGS").length;
+    return keys.filter((k) => k.sk !== "SETTINGS" && k.sk !== "INCOME").length;
   }
 }

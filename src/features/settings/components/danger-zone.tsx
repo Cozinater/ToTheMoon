@@ -19,7 +19,7 @@ export function DangerZone() {
         <div>
           <h2 className="font-display text-lg font-semibold tracking-tight">Danger zone</h2>
           <p className="text-sm text-muted-foreground">
-            Permanently deletes every snapshot and the current draft.
+            Permanently deletes every snapshot, the current draft and your income history.
           </p>
         </div>
       </div>

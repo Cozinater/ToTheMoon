@@ -372,6 +372,46 @@ describe("search", () => {
   });
 });
 
+describe("income", () => {
+  const row = (date: string, amountSgd: number) => ({ id: crypto.randomUUID(), date, amountSgd });
+
+  it("GET returns no rows when none saved", async () => {
+    const res = await makeApp().request("/api/income");
+    expect(res.status).toBe(200);
+    expect(await json(res)).toEqual({ entries: [] });
+  });
+
+  it("PUT sorts rows by date, then persists", async () => {
+    const app = makeApp();
+    const later = row("2022-01-03", 4800);
+    const earlier = row("2021-07-05", 4600);
+    const res = await app.request("/api/income", jsonReq("PUT", { entries: [later, earlier] }));
+    expect(res.status).toBe(200);
+    expect((await json(res)).entries).toEqual([earlier, later]);
+    expect((await json(await app.request("/api/income"))).entries).toEqual([earlier, later]);
+  });
+
+  it("PUT rejects two rows on the same date", async () => {
+    const res = await makeApp().request("/api/income", jsonReq("PUT", {
+      entries: [row("2022-01-03", 4800), row("2022-01-03", 4900)],
+    }));
+    expect(res.status).toBe(400);
+    expect((await json(res)).error).toBe("VALIDATION");
+  });
+
+  it("PUT rejects a zero or negative amount", async () => {
+    const res = await makeApp().request("/api/income", jsonReq("PUT", { entries: [row("2022-01-03", 0)] }));
+    expect(res.status).toBe(400);
+  });
+
+  it("reset clears income rows", async () => {
+    const app = makeApp();
+    await app.request("/api/income", jsonReq("PUT", { entries: [row("2022-01-03", 4800)] }));
+    await app.request("/api/reset", { method: "POST" });
+    expect((await json(await app.request("/api/income"))).entries).toEqual([]);
+  });
+});
+
 describe("settings", () => {
   it("GET returns the default strategies when none saved", async () => {
     const res = await makeApp().request("/api/settings");

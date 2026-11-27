@@ -3,7 +3,7 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { z } from "zod";
 import {
   amendInputSchema, closeInputSchema, defaultSettings, draftInputSchema,
-  emptyDraft, quotableTypeSchema, settingsSchema, type QuotableType, type Snapshot,
+  emptyDraft, incomeSchema, quotableTypeSchema, settingsSchema, type QuotableType, type Snapshot,
 } from "../shared/schema.ts";
 import { computeTotals } from "../shared/totals.ts";
 import {
@@ -106,6 +106,16 @@ export function createApp({ store, market, originSecret, auth }: AppDeps) {
     const settings = { strategies };
     await store.putSettings(settings);
     return c.json(settings);
+  });
+
+  api.get("/income", async (c) => c.json(await store.getIncome() ?? { entries: [] }));
+
+  api.put("/income", async (c) => {
+    const parsed = incomeSchema.safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return invalid(c, parsed.error.issues);
+    const income = { entries: [...parsed.data.entries].sort((a, b) => a.date.localeCompare(b.date)) };
+    await store.putIncome(income);
+    return c.json(income);
   });
 
   api.post("/close", async (c) => {

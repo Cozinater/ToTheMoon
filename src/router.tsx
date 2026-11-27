@@ -4,6 +4,7 @@ import { indexRoute } from "@/routes/index";
 import { portfolioRoute } from "@/routes/portfolio";
 import { assetsRoute } from "@/routes/assets";
 import { historyRoute } from "@/routes/history";
+import { incomeRoute } from "@/routes/income";
 import { settingsRoute } from "@/routes/settings";
 import { loginRoute } from "@/routes/login";
 
@@ -13,7 +14,7 @@ import { loginRoute } from "@/routes/login";
 // To switch to file-based routing later, install @tanstack/router-plugin,
 // add it to vite.config.ts, and let it generate the route tree instead.
 const routeTree = rootRoute.addChildren([
-  indexRoute, portfolioRoute, assetsRoute, historyRoute, settingsRoute, loginRoute,
+  indexRoute, portfolioRoute, assetsRoute, incomeRoute, historyRoute, settingsRoute, loginRoute,
 ]);
 
 export const router = createRouter({ routeTree });
